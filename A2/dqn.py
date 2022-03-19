@@ -27,11 +27,11 @@ def argmax(x):
 
 
 class DeepQAgent:
-    def __init__(self):
+    def __init__(self, env):
         self.DeepQ_Network = _initialize_dqn()
         self.Target_Network = _initialize_dqn()
     
-    def _initialize_dqn():
+    def _initialize_dqn(): #add params?
         model = keras.Sequential()
         model.add(keras.Input(shape=(4,)))
         model.add(layers.Dense(3, activation='relu'))
@@ -58,7 +58,8 @@ class DeepQAgent:
             
         return a
     
-    def take_action():
+    def take_action(a):
+        #env.step, outside class?
         
 
 
@@ -84,6 +85,15 @@ def random_move():
     env.close()
     print('Ran for {} timesteps'.format(len(rewards)))
 
+
+
+def main():
+    do_random = True
+
+    if do_random:
+        random_move()
+
+
 if __name__ == '__main__':
-    random_move()
+    main()
 
