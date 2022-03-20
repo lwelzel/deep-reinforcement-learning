@@ -52,7 +52,7 @@ class DeepQAgent:
     
 
     def select_action(self, s, policy='egreedy', epsilon=None, temp=None):
-        actions = self.DeepQ_Network(s)#(s[0],s[1],s[2],s[3]))
+        actions = self.DeepQ_Network(s)#.predict(s)
         print(actions)
         
         if policy == 'egreedy':
