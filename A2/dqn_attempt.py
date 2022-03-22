@@ -40,7 +40,9 @@ class DeepQAgent:
         if use_tn:
             self.Target_Network = self._initialize_dqn()
     
-    def _initialize_dqn(self): #add params?
+    def _initialize_dqn(self): 
+        """Template model for both Main and Target Network for the Q-value mapping"""
+
         model = keras.Sequential()
         model.add(keras.Input(shape=(self.n_inputs,)))
         model.add(layers.Dense(3, activation='relu'))
@@ -52,6 +54,9 @@ class DeepQAgent:
     
 
     def select_action(self, s, policy='egreedy', epsilon=None, temp=None):
+        """Function that takes a single state as input and uses the Main or Target Network combined with some exploration strategy
+           to select an action for the agent to take. It returns this action, and the Q_values computed by the Network"""
+
         s = np.reshape(s,[1,4])
         actions = self.DeepQ_Network.predict(s)
         
@@ -71,16 +76,32 @@ class DeepQAgent:
 
         return a, actions[0]
 
-    def one_run_update(self,states,actions,rewards,Q_values):
-        #compute bellmann update target
-        G = rewards + self.gamma*np.max(Q_values,axis=1)
-        states = np.reshape(states,[len(states),4])
+
+
+    def one_run_update(self,states,actions,rewards,states_next,done_ar):
+        """Receives numpy_ndarrays of size batch_size and computes new back-up targets on which the model is trained"""
+
+        Q_current = self.DeepQ_Network.predict(states) #Current Q(s,a) values to be updated if a is taken
 
         for i in range(0,len(states)):
-            Q_values[i,actions[i]] = (1-self.learning_rate) * Q_values[i,actions[i]] + self.learning_rate G[i] #update taken actions
- 
+            if done_ar[i]:
+                G = rewards[i] #don't bootstrap
+            else:
+                if self.use_tn:
+                    pass; #TODO
+                else:
+                    next_state = np.reshape(states_next[i],[1,4])
+                    max_Q_next = np.max(self.DeepQ_Network.predict(next_state))
+                G = rewards[i] + self.gamma*max_Q_next
+                
+            #Bellmann's equation
+            Q_current[i,actions[i]] = (1-self.learning_rate)*Q_current[i,actions[i]] + self.learning_rate * G         
+                 
 
-        self.DeepQ_Network.fit(states,Q_values,epochs=1,verbose=True)     
+        states = np.reshape(states,[len(states),4]) #reshape to feed into keras
+
+        #Fit and train the network
+        self.DeepQ_Network.fit(states,Q_current,epochs=1,verbose=True)     
 
 
 
@@ -88,36 +109,41 @@ class DeepQAgent:
   
 def learn_dqn():
     epsilon = 0.1
-    batch_size = 30
+    batch_size = 128
     num_iterations = 1000
 
     env = gym.make('CartPole-v1')
     pi = DeepQAgent(4, env.action_space)
 
+    states,actions,rewards,states_next,done_ar = [],[],[],[],[]
+
     for iter in range(num_iterations):
         s = env.reset()
         done = False
-
-        states,actions,rewards,Q_values = [],[],[],[]
+        episode_reward = 0
 
         #one training iteration
         while not done:
             a, Q_sa = pi.select_action(s, epsilon=epsilon)
             s_next,r,done,_ = env.step(a)
             env.render()
-            time.sleep(0.07)   
+            time.sleep(1e-3)   
 
+            episode_reward += r
             states.append(s)
             actions.append(a)
             rewards.append(r)
-            Q_values.append(Q_sa)
+            states_next.append(s_next)
+            done_ar.append(done)
   
             s = s_next
-    
-        print("Iteration {0}: Timesteps survived: {1}".format(iter,len(states)))
 
-        idxs = np.random.choice(np.arange(len(states)),size=batch_size) #randomize to break temporal correlation?
-        pi.one_run_update(np.array(states)[idxs],np.array(actions)[idxs],np.array(rewards)[idxs],np.array(Q_values)[idxs])
+    
+        print("Iteration {0}: Timesteps survived: {1}".format(iter,int(episode_reward)))
+        if len(states) > 500:
+            idxs = np.random.choice(np.arange(len(states)),size=batch_size) #randomize to break temporal correlation?
+            pi.one_run_update(np.array(states)[idxs],np.array(actions)[idxs],np.array(rewards)[idxs],np.array(states_next)[idxs],np.array(done_ar)[idxs])       
+        #epsilon = epsilon - (1./num_iterations)
 
     env.close()
 
