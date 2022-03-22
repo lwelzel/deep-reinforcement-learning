@@ -46,14 +46,14 @@ class DeepQAgent:
         model.add(layers.Dense(3, activation='relu'))
         model.add(layers.Dense(self.action_space.n))
         model.summary()
-        model.compile() #loss='mean_squared_error', optimizer=optimizers.Adam(0.001))
+        model.compile(loss='mean_squared_error', optimizer=optimizers.Adam(0.001))
         print(model.get_weights())
         return model
     
 
     def select_action(self, s, policy='egreedy', epsilon=None, temp=None):
-        actions = self.DeepQ_Network(s)#.predict(s)
-        print(actions)
+        s = np.reshape(s,[1,4])
+        actions = self.DeepQ_Network.predict(s)
         
         if policy == 'egreedy':
             if epsilon is None:
@@ -68,30 +68,58 @@ class DeepQAgent:
                 raise KeyError("Provide a temperature")
             p = softmax(actions,temp)
             a = np.random.choice([0,1], p=p)
-            
-        return a
-    
-    def take_action(a):
-        pass;
-        #env.step, outside class?
-        
 
+        return a, actions[0]
+
+    def one_run_update(self,states,actions,rewards,Q_values):
+        #compute bellmann update target
+        G = rewards + self.gamma*np.max(Q_values,axis=1)
+        states = np.reshape(states,[len(states),4])
+
+        for i in range(0,len(states)):
+            Q_values[i,actions[i]] = (1-self.learning_rate) * Q_values[i,actions[i]] + self.learning_rate G[i] #update taken actions
+ 
+
+        self.DeepQ_Network.fit(states,Q_values,epochs=1,verbose=True)     
+
+
+
+    
+  
 def learn_dqn():
     epsilon = 0.1
+    batch_size = 30
+    num_iterations = 1000
 
     env = gym.make('CartPole-v1')
     pi = DeepQAgent(4, env.action_space)
 
-    s = env.reset()
-    print(s)
-    print(s.shape[-1])
-    done = False
-    while not done:
-        a = pi.select_action(s, epsilon=epsilon)
-        s_next,r,done,_ = env.step(a)
-        env.render()
-        s = s_next
-        
+    for iter in range(num_iterations):
+        s = env.reset()
+        done = False
+
+        states,actions,rewards,Q_values = [],[],[],[]
+
+        #one training iteration
+        while not done:
+            a, Q_sa = pi.select_action(s, epsilon=epsilon)
+            s_next,r,done,_ = env.step(a)
+            env.render()
+            time.sleep(0.07)   
+
+            states.append(s)
+            actions.append(a)
+            rewards.append(r)
+            Q_values.append(Q_sa)
+  
+            s = s_next
+    
+        print("Iteration {0}: Timesteps survived: {1}".format(iter,len(states)))
+
+        idxs = np.random.choice(np.arange(len(states)),size=batch_size) #randomize to break temporal correlation?
+        pi.one_run_update(np.array(states)[idxs],np.array(actions)[idxs],np.array(rewards)[idxs],np.array(Q_values)[idxs])
+
+    env.close()
 
 
     
