@@ -273,4 +273,5 @@ fabric.properties
 *.pdf
 
 # idea
-.idea*
+*.idea
+*.epub
