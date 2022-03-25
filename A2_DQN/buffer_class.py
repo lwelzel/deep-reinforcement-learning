@@ -19,7 +19,7 @@ class MetaBuffer(object):
 
         # buffer
         # s(t), a(t), r(t), s(t+1), done(t+1)
-        self._buffer = np.zeros(shape=(depth, self.__class__.n_args), dtype=self.__class__.dtype)
+        self._buffer = np.zeros(shape=(depth, self.__class__.n_args), dtype=object)
         print(self._buffer.shape)
 
 
