@@ -8,12 +8,14 @@ from tensorflow import keras
 from tensorflow.keras import layers, optimizers
 import gym
 from helper import softmax, argmax
+from buffer_class import MetaBuffer
 
 
 
 class DeepQAgent:
     def __init__(self,  n_inputs, 
                         action_space, 
+                        depth = 2500,
                         learning_rate = 0.01, 
                         gamma=0.8, 
                         hidden_layers= None,
@@ -37,6 +39,9 @@ class DeepQAgent:
         if use_tn:
             self.Target_Network = self._initialize_dqn(hidden_layers,hidden_act,init,loss_func)
     
+        if use_er:
+            self.buffer = MetaBuffer(depth)  
+
 
     def _initialize_dqn(self,hidden_layers=None,hidden_act='relu',init='HeUniform',loss_func='mean_squared_error'): 
         """Template model for both Main and Target Network for the Q-value mapping. Layers should be a list with the number of fully connected nodes per hidden layer"""
@@ -137,6 +142,8 @@ class DeepQAgent:
 
 
 
+
+
     
   
 def learn_dqn():
@@ -145,14 +152,15 @@ def learn_dqn():
     ###PARAMETERS###############
     epsilon = .1
     temp = 1.
-    policy = 'softmax' #'egreedy'
+    policy = 'egreedy' #'egreedy'
 
+    depth = 2500
     batch_size = 128
     num_iterations = 250
     target_update_freq = 25 #iterations
 
     e_anneal = False
-    use_er = False
+    use_er = True
     use_tn = True
 
     render = True
@@ -162,13 +170,29 @@ def learn_dqn():
 
 
     env = gym.make('CartPole-v1')
-    pi = DeepQAgent(4, env.action_space, hidden_layers=[12,6], use_er=use_er, use_tn=use_tn)
+    pi = DeepQAgent(4, env.action_space, hidden_layers=[12,6], use_er=use_er, use_tn=use_tn, depth=depth)
     
     if pi.use_tn and e_anneal:
         epsilon = 0.8
 
     all_rewards = []
-    states,actions,rewards,states_next,done_ar = [],[],[],[],[]
+
+    #buffer burn in time
+    if use_er:
+        timesteps = 0
+        while timesteps < depth+1:
+            s = env.reset()
+            done = False
+
+            while not done:
+                a, Q_sa = pi.select_action(s, policy=policy,epsilon=epsilon,temp=temp)
+                s_next,r,done,_ = env.step(a)
+                if render:
+                    env.render()
+                    time.sleep(1e-3)  
+                pi.buffer.update_buffer(np.array([s,a,r,s_next,done]))
+                timesteps += 1
+    
 
     for iter in range(num_iterations):
         s = env.reset()
@@ -185,21 +209,20 @@ def learn_dqn():
 
             episode_reward += r
             if pi.use_er:
-                states.append(s)
-                actions.append(a)
-                rewards.append(r)
-                states_next.append(s_next)
-                done_ar.append(done)
-  
-            #'Dumb' 1-step update
-            pi.one_step_update(s,a,r,s_next,done)
+                pi.buffer.update_buffer(np.array([s,a,r,s_next,done]))
+            else:
+                #'Dumb' 1-step update
+                pi.one_step_update(s,a,r,s_next,done)
 
             s = s_next
 
-            
-
         all_rewards.append(episode_reward)
         print("Iteration {0}: Timesteps survived: {1}".format(iter,int(episode_reward)))
+
+        if pi.use_er:
+            batch = pi.buffer.sample
+            pi.one_step_update(*batch.T)
+
 
         #epsilon annealing schedule?
         #if epsilon > 0.1 and (iter+1) % 25 == 0:
@@ -209,9 +232,9 @@ def learn_dqn():
             print("Updating Target Network..")
             pi.Target_Network.set_weights(pi.DeepQ_Network.get_weights())
 
-            if e_anneal and iter % (4*target_update_freq) == 0 and epsilon > 1.1: #want it at ~0.1, but rounding errors can mess this up
-                epsilon -= 0.1
-                print("Annealed epsilon (new: {})".format(epsilon))
+            #if e_anneal and iter % (4*target_update_freq) == 0 and epsilon > 1.1: #want it at ~0.1, but rounding errors can mess this up
+            #    epsilon -= 0.1
+            #    print("Annealed epsilon (new: {})".format(epsilon))
 
 
 
