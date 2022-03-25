@@ -14,10 +14,12 @@ from helper import softmax, argmax
 class DeepQAgent:
     def __init__(self,  n_inputs, 
                         action_space, 
-                        hidden_layers=None,
-                        hidden_act = 'relu',
                         learning_rate = 0.01, 
                         gamma=0.8, 
+                        hidden_layers= None,
+                        hidden_act = 'relu',
+                        init = 'HeUniform',
+                        loss_func = 'mean_squared_error',
                         use_tn = False, 
                         use_er = False
                         ):
@@ -31,12 +33,12 @@ class DeepQAgent:
         self.use_tn = use_tn
         self.use_er = use_er
 
-        self.DeepQ_Network = self._initialize_dqn(hidden_layers,hidden_act)
+        self.DeepQ_Network = self._initialize_dqn(hidden_layers,hidden_act,init,loss_func)
         if use_tn:
-            self.Target_Network = self._initialize_dqn(hidden_layers,hidden_act)
+            self.Target_Network = self._initialize_dqn(hidden_layers,hidden_act,init,loss_func)
     
 
-    def _initialize_dqn(self,hidden_layers=None,hidden_act='relu',init='HeUniform'): 
+    def _initialize_dqn(self,hidden_layers=None,hidden_act='relu',init='HeUniform',loss_func='mean_squared_error'): 
         """Template model for both Main and Target Network for the Q-value mapping. Layers should be a list with the number of fully connected nodes per hidden layer"""
     
         model = keras.Sequential()
@@ -51,7 +53,7 @@ class DeepQAgent:
 
         model.add(layers.Dense(self.action_space.n,kernel_initializer=init))
         model.summary()
-        model.compile(loss='mean_squared_error', optimizer=optimizers.Adam(self.learning_rate))
+        model.compile(loss=loss_func, optimizer=optimizers.Adam(self.learning_rate))
 
         return model
     
@@ -61,7 +63,10 @@ class DeepQAgent:
            to select an action for the agent to take. It returns this action, and the Q_values computed by the Network"""
 
         s = np.reshape(s,[1,4])
-        actions = self.DeepQ_Network.predict(s)[0]
+        if self.use_tn:
+            actions = self.Target_Network.predict(s)[0]
+        else:
+            actions = self.DeepQ_Network.predict(s)[0]
         
         if policy == 'egreedy':
             if epsilon is None:
@@ -81,14 +86,18 @@ class DeepQAgent:
 
 
     def one_step_update(self,s,a,r,s_next,done):
-        Q_current = self.DeepQ_Network.predict(np.reshape(s,[1,4]))
+        
+        if self.use_tn:
+            Q_current = self.Target_Network.predict(np.reshape(s,[1,4]))
+        else:
+            Q_current = self.DeepQ_Network.predict(np.reshape(s,[1,4]))
 
         #update targets
         if done:
             G = r
         else:
             if self.use_tn:
-                pass; #TODO
+                max_Q_next = np.max(self.Target_Network.predict(np.reshape(s_next,[1,4]))) 
             else:
                 max_Q_next = np.max(self.DeepQ_Network.predict(np.reshape(s_next,[1,4])))
             G = r * self.gamma * max_Q_next
@@ -101,16 +110,19 @@ class DeepQAgent:
     def update(self,states,actions,rewards,states_next,done_ar):
         """Receives numpy_ndarrays of size batch_size and computes new back-up targets on which the model is trained"""
 
-        Q_current = self.DeepQ_Network.predict(states)#Current Q(s,a) values to be updated if a is taken
+        if self.use_tn:
+            Q_current = self.Target_Network.predict(states)
+        else:
+            Q_current = self.DeepQ_Network.predict(states)#Current Q(s,a) values to be updated if a is taken
 
         for i in range(0,len(states)):
             if done_ar[i]:
                 G = rewards[i] #don't bootstrap
             else:
+                next_state = np.reshape(states_next[i],[1,4])
                 if self.use_tn:
-                    pass; #TODO
+                    max_Q_next = np.max(self.DeepQ_Network.predict(next_state))
                 else:
-                    next_state = np.reshape(states_next[i],[1,4])
                     max_Q_next = np.max(self.DeepQ_Network.predict(next_state))
                 G = rewards[i] + self.gamma*max_Q_next
                 
@@ -128,12 +140,32 @@ class DeepQAgent:
     
   
 def learn_dqn():
-    epsilon = 1.
+    """Catch all function containing the complete learning process for a DQN on the gym polecart environment """
+
+    ###PARAMETERS###############
+    epsilon = .1
+    temp = 1.
+    policy = 'softmax' #'egreedy'
+
     batch_size = 128
-    num_iterations = 1000
+    num_iterations = 250
+    target_update_freq = 25 #iterations
+
+    e_anneal = False
+    use_er = False
+    use_tn = True
+
+    render = True
+    plot = True
+    title = r"Softmax $\tau$=1, +TN -ER" 
+    ###########################
+
 
     env = gym.make('CartPole-v1')
-    pi = DeepQAgent(4, env.action_space, hidden_layers=[12,6],use_er = False)
+    pi = DeepQAgent(4, env.action_space, hidden_layers=[12,6], use_er=use_er, use_tn=use_tn)
+    
+    if pi.use_tn and e_anneal:
+        epsilon = 0.8
 
     all_rewards = []
     states,actions,rewards,states_next,done_ar = [],[],[],[],[]
@@ -145,10 +177,11 @@ def learn_dqn():
 
         #one training iteration
         while not done:
-            a, Q_sa = pi.select_action(s, epsilon=epsilon)
+            a, Q_sa = pi.select_action(s, policy=policy,epsilon=epsilon,temp=temp)
             s_next,r,done,_ = env.step(a)
-            env.render()
-            time.sleep(1e-3)   
+            if render:
+                env.render()
+                time.sleep(1e-3)   
 
             episode_reward += r
             if pi.use_er:
@@ -159,30 +192,35 @@ def learn_dqn():
                 done_ar.append(done)
   
             #'Dumb' 1-step update
-            pi.one_step_update(s,a,r,s_next,done)#np.array(s),np.array(a),np.array(r),np.array(s_next),np.array(done))
+            pi.one_step_update(s,a,r,s_next,done)
 
             s = s_next
 
             
 
         all_rewards.append(episode_reward)
-        print("Iteration {0}: Timesteps survived: {1} ({2})".format(iter,int(episode_reward),epsilon))
+        print("Iteration {0}: Timesteps survived: {1}".format(iter,int(episode_reward)))
 
         #epsilon annealing schedule?
-        if epsilon > 0.1 and (iter+1) % 25 == 0:
-            epsilon = epsilon - 0.1#(1./num_iterations)
+        #if epsilon > 0.1 and (iter+1) % 25 == 0:
+        #    epsilon = epsilon - 0.1#(1./num_iterations)
+
+        if pi.use_tn and iter % target_update_freq == 0:
+            print("Updating Target Network..")
+            pi.Target_Network.set_weights(pi.DeepQ_Network.get_weights())
+
+            if e_anneal and iter % (4*target_update_freq) == 0 and epsilon > 1.1: #want it at ~0.1, but rounding errors can mess this up
+                epsilon -= 0.1
+                print("Annealed epsilon (new: {})".format(epsilon))
+
+
 
     #Plot learning curve
-    fig = LearningCurvePlot(title="No Target Network, No Experience Replay")
-    fig.add_curve(smooth(all_rewards,100))
+    if plot:
+        fig = LearningCurvePlot(title=title)
+        fig.add_curve(smooth(all_rewards,50))
         
-
-        #form of experience replay
-        #if len(states) > 500:
-        #    idxs = np.random.choice(np.arange(len(states)),size=batch_size) #randomize to break temporal correlation?
-        #    pi.update(np.array(states)[idxs],np.array(actions)[idxs],np.array(rewards)[idxs],np.array(states_next)[idxs],np.array(done_ar)[idxs])       
-
-
+        
 
     env.close()
 
