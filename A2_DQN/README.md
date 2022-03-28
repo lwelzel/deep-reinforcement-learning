@@ -21,9 +21,10 @@ See project overview for authors.
 
 ## To Dos:
 ### ESSENTIAL:
-- [ ] 
-- [ ] 
-
+- [ ] Save rewards, save network (model.save) use try: except
+- [ ] Multithread agents
+- [ ] Experiment.py - defaults: alpha=0.25, method:e-greedy, epsilon=0.05, discount=1., layers=2, neurons=(12, 6)
+- [ ] Plotting (CI, axis etc)
 
 ### Backend:
 - [ ] 
@@ -40,7 +41,7 @@ See project overview for authors.
 
 
 ### Expand Scope:
-- [ ] 
+- [ ] Buffers
 - [ ] 
 
 

@@ -1,7 +1,8 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+from pathlib import Path
 import time
+from time import perf_counter, strftime, gmtime
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -56,7 +57,7 @@ class DeepQAgent:
 
         model.add(layers.Dense(self.action_space.n, kernel_initializer=init))
         model.summary()
-        model.compile(loss=loss_func, optimizer=optimizers.Adam(self.learning_rate))
+        model.compile(loss=loss_func, optimizer=optimizers.Adam(0.001))
 
         return model
 
@@ -134,7 +135,15 @@ class DeepQAgent:
         states = np.reshape(states, [len(states), 4])  # reshape to feed into keras
 
         # Fit and train the network
-        self.DeepQ_Network.fit(states, Q_current, epochs=1, verbose=True)
+        # self.DeepQ_Network.fit(states, Q_current, epochs=1, verbose=True)
+
+
+def save_run(rewards, agent):
+    # self.dir_location = Path(file_location)
+    # self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_part={n_particles}_id={id}.h5"
+    # Path(self.dir_location).mkdir(parents=True, exist_ok=True)
+    # self.file_location = Path(file_location) / self.name
+    pass
 
 
 def learn_dqn():
