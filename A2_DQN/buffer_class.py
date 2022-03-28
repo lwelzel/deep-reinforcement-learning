@@ -19,10 +19,17 @@ class MetaBuffer(object):
         # meta selection and self-knowledge
         self._step = 0
         self.buffer_selecter = lambda **buffer_kwargs: None
+        # we want the batches we draw to be sufficiently random
+        _max_batch_fill = 0.1
 
         # buffer
         # s(t), a(t), r(t), s(t+1), done(t+1)
-        self._sample_batch_length = sample_batch_length  # TODO: random value, decide on reasonable
+        try:
+            assert sample_batch_length < _max_batch_fill * depth, f"Batch length must be smaller than buffer depth."
+        except AssertionError:
+            sample_batch_length = int(_max_batch_fill * depth)
+            print(f"Downsizing batch length to {sample_batch_length} (10% of depth)")
+        self._sample_batch_length = sample_batch_length  # TODO: random value right now, decide on reasonable
 
         self._buffer = np.zeros(shape=(depth,
                                        self.__class__.n_args,
@@ -63,25 +70,35 @@ class MetaBuffer(object):
         self._step += 1
 
 
-    @classmethod
-    def __reset_all__(cls):
-        pass
+    # @classmethod
+    def __reset_all__(self):
+        self._step = 0
+        self._buffer = np.zeros(shape=self._buffer.shape,
+                                dtype=object)
 
     @property
     def sample(self):
-        # TODO: when implemented long batches:
-        # return self._rng.choice(self._buffer, self._sample_batch_length, replace=False, )
         # for sequential buffer samples:
         # return np.take(self._buffer, indices, axis=None, out=None, mode='raise')
-
-        return self._rng.choice(self._buffer, 1, replace=False, )
+        # for single step buffer:
+        # return self._rng.choice(self._buffer, 1, replace=False, )
+        return self._rng.choice(self._buffer, self._sample_batch_length, replace=False, )
 
 
 if __name__ == "__main__":
-    meta_buffer = MetaBuffer(depth=1000)
+    sample_batch_length = 10
+    meta_buffer = MetaBuffer(depth=1000, sample_batch_length=sample_batch_length)
 
-    # for i, transition in enumerate(np.arange(0., 2000. * 5, 1).reshape((2000, 5))):
-    #     meta_buffer.update_buffer(transition=transition)
-    #
-    # for i in np.arange(2000 * 5, (2000 + 10) * 5, 1).reshape((10, 5)):
-    #     print(meta_buffer.sample)
+    for i, transition in enumerate(np.arange(0., 2000. * 5 * 4, 1).reshape((2000, 5, 4))):
+        meta_buffer.update_buffer(transition=transition)
+
+    n_batches = 2
+    batches = np.zeros(shape=(n_batches, sample_batch_length, 5, 4))
+
+    for i, new_batch in enumerate(np.arange(2000 * 5 * 4, (2000 + 2) * 5 * 4, 1).reshape((2, 5, 4))):
+        sample = meta_buffer.sample
+        print("Drawing sample of shape: ",  sample.shape)
+        batches[i] = sample
+
+    assert ~np.all(batches[0] == batches[1]), "Batches should not be the same at all positions."
+    print("Passed.")

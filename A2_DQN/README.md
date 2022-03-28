@@ -25,6 +25,10 @@ See project overview for authors.
 - [ ] Multithread agents
 - [ ] Experiment.py - defaults: alpha=0.25, method:e-greedy, epsilon=0.05, discount=1., layers=2, neurons=(12, 6)
 - [ ] Plotting (CI, axis etc)
+- [ ] 
+- [ ] 
+- [ ] Export environment.yml file
+- [ ] Export requirements.txt file
 
 ### Backend:
 - [ ] 
