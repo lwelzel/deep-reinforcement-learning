@@ -9,6 +9,7 @@ from tensorflow.keras import layers, optimizers
 import gym
 from helper import softmax, argmax
 from buffer_class import MetaBuffer
+from helper import LearningCurvePlot, smooth
 
 
 class DeepQAgent:
@@ -115,6 +116,7 @@ class DeepQAgent:
         else:
             Q_current = self.DeepQ_Network.predict(states)  # Current Q(s,a) values to be updated if a is taken
 
+        # TODO: compare with update from last report
         for i in range(0, len(states)):
             if done_ar[i]:
                 G = rewards[i]  # don't bootstrap
