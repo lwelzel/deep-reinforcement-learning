@@ -24,7 +24,7 @@ class DeepQAgent:
                  init='HeUniform',
                  loss_func='mean_squared_error',
                  use_tn=False,
-                 use_er=False
+                 use_er=False,
                  ):
 
         self.n_inputs = n_inputs  # can we pull this from somewhere else?
@@ -34,10 +34,12 @@ class DeepQAgent:
 
         self.use_tn = use_tn
         self.use_er = use_er
+        
+        self.hidden_layers = hidden_layers
 
-        self.DeepQ_Network = self._initialize_dqn(hidden_layers, hidden_act, init, loss_func)
+        self.DeepQ_Network = self._initialize_dqn(self.hidden_layers, hidden_act, init, loss_func)
         if use_tn:
-            self.Target_Network = self._initialize_dqn(hidden_layers, hidden_act, init, loss_func)
+            self.Target_Network = self._initialize_dqn(self.hidden_layers, hidden_act, init, loss_func)
 
         if use_er:
             self.buffer = MetaBuffer(depth)
@@ -48,7 +50,7 @@ class DeepQAgent:
         model = keras.Sequential()
         model.add(keras.Input(shape=(self.n_inputs,)))
 
-        if layers == None:
+        if hidden_layers == None:
             print("WARNING: No hidden layers given for Neural Network")
             input("Continue? ... ")
         else:
@@ -138,12 +140,16 @@ class DeepQAgent:
         # self.DeepQ_Network.fit(states, Q_current, epochs=1, verbose=True)
 
 
-def save_run(rewards, agent):
-    # self.dir_location = Path(file_location)
-    # self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_part={n_particles}_id={id}.h5"
-    # Path(self.dir_location).mkdir(parents=True, exist_ok=True)
-    # self.file_location = Path(file_location) / self.name
-    pass
+    def save(self, rewards):
+        """Saves Deep Q-Network and array of rewards
+        """
+        # self.dir_location = Path(file_location)
+        # self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_part={n_particles}_id={id}.h5"
+        # Path(self.dir_location).mkdir(parents=True, exist_ok=True)
+        # self.file_location = Path(file_location) / self.name
+        model_name = f"{self.hidden_act}-alpha{self.learning_rate}-gamma{self.gamma}-"+"".join([str(n) for n in self.hidden_layers])
+        self.DeepQ_Network.save("DeepQN_{}.h5".format(model_name))
+        np.savetxt("Rewards_{}.csv".format(model_name), a, delimiter=",")
 
 
 def learn_dqn():
