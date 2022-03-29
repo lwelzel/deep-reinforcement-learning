@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import numpy as np
-from dqn import learn_dqn
+import time
+
+from dqn import DeepQAgent, learn_dqn
 from helper import LearningCurvePlot, smooth
 
 def average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
@@ -49,11 +52,13 @@ def main():
     title = r"Softmax $\tau$=1, +TN -ER"
     ###########################
     
+    Plot = LearningCurvePlot(title = "Deep Q-Learning, Varied over epsilon")
     n_repetitions = 10
     for epsilon in [0.1,0.5,0.8]:
-        average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-                                 use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-
+        learning_curve = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
+                            use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
+        Plot.add_curve(learning_curve,label=r'$\epsilon $ = {}'.format(epsilon))
+    Plot.save('epsilon.png')
 
 if __name__ == '__main__':
     main()
