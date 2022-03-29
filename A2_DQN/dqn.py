@@ -140,19 +140,9 @@ class DeepQAgent:
 
     def save(self, rewards):
         """Saves Deep Q-Network and array of rewards"""
-        model_name = f"{self.hidden_act}-alpha{self.learning_rate}-gamma{self.gamma}-"+"".join([str(n) for n in self.hidden_layers])
+        model_name = f"alpha{self.learning_rate}-gamma{self.gamma}-"+"".join([str(n) for n in self.hidden_layers])
         self.DeepQ_Network.save("DeepQN_{}.h5".format(model_name))
         np.savetxt("Rewards_{}.csv".format(model_name), a, delimiter=",")
-
-
-
-def save_run(rewards, agent):
-    # self.dir_location = Path(file_location)
-    # self.name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_den={density:.0e}_temp={temperature:.0e}_part={n_particles}_id={id}.h5"
-    # Path(self.dir_location).mkdir(parents=True, exist_ok=True)
-    # self.file_location = Path(file_location) / self.name
-    pass
-
 
 
 
@@ -202,7 +192,7 @@ def learn_dqn(learning_rate,policy,epsilon,temp,gamma,hidden_layers,use_er,use_t
         all_rewards[iter] = episode_reward
         if render: print("Iteration {0}: Timesteps survived: {1} ({2})".format(iter, int(episode_reward),round(epsilon,2)))
 
-        if anneal_method == 'linear': epsilon -= (1.-0.01)/(num_iterations)
+        if anneal_method == 'linear': epsilon -= (1.-0.1)/(num_iterations)
 
         if pi.use_er:
             batch = pi.buffer.sample
@@ -313,7 +303,8 @@ def play_dqn():
 
         if pi.use_er:
             batch = pi.buffer.sample
-            pi.one_step_update(*batch.T)
+            batch = np.asarray(batch).astype('float32')
+            pi.update(batch[:,0],batch[:,1],batch[:,2],batch[:,3],batch[:,4])
 
         # epsilon annealing schedule?
         # if epsilon > 0.1 and (iter+1) % 25 == 0:
