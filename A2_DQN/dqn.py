@@ -157,13 +157,16 @@ def save_run(rewards, agent):
 
 
 def learn_dqn(learning_rate,policy,epsilon,temp,gamma,hidden_layers,use_er,use_tn,num_iterations,depth=2500,learn_freq=4,
-              target_update_freq=25,sample_batch_size=128,render=False):
+              target_update_freq=25,sample_batch_size=128,anneal_method=None,render=False):
     """Callable DQN function for complete runs and parameter optimization"""
     env = gym.make('CartPole-v1')
     pi = DeepQAgent(4, env.action_space, learning_rate, gamma, hidden_layers, use_tn=use_tn, use_er=use_er, depth=depth, sample_batch_size=sample_batch_size)
 
     all_rewards = np.full(shape=num_iterations, fill_value=np.nan, dtype=np.float64) #use to keep track of learning curve
-    
+    if not anneal_method == None:
+        epsilon = 1.    
+
+
     #we initialize an empty buffer, fill it in with random values first. Later additions then overwrite these random values
     if use_er:
         timesteps = 0
@@ -197,7 +200,9 @@ def learn_dqn(learning_rate,policy,epsilon,temp,gamma,hidden_layers,use_er,use_t
             if render: env.render()
 
         all_rewards[iter] = episode_reward
-        if render: print("Iteration {0}: Timesteps survived: {1}".format(iter, int(episode_reward)))
+        if render: print("Iteration {0}: Timesteps survived: {1} ({2})".format(iter, int(episode_reward),round(epsilon,2)))
+
+        if anneal_method == 'linear': epsilon -= (1.-0.01)/(num_iterations)
 
         if pi.use_er:
             batch = pi.buffer.sample
@@ -208,6 +213,7 @@ def learn_dqn(learning_rate,policy,epsilon,temp,gamma,hidden_layers,use_er,use_t
         if pi.use_tn and iter % target_update_freq == 0:
             if render: print("Updating Target Network")
             pi.Target_Network.set_weights(pi.DeepQ_Network.get_weights())
+
 
     #save model and learning curve
 
