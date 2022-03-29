@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
 
 # Code based on helper.py by Thomas Moerland for Reinforcement Learning Assignment 1
+
 
 class LearningCurvePlot:
 
