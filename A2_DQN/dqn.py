@@ -6,8 +6,8 @@ from tqdm import tqdm
 from time import perf_counter, strftime, gmtime
 import numpy as np
 import tensorflow as tf
-# from tensorflow import keras
-from tensorflow.keras import layers, optimizers, Sequential, Input
+from tensorflow import keras
+from tensorflow.keras import layers, optimizers # , Sequential, Input
 import gym
 from buffer_class import MetaBuffer
 from helper import LearningCurvePlot, smooth, softmax, argmax
@@ -47,8 +47,8 @@ class DeepQAgent:
     def _initialize_dqn(self, hidden_layers=None, hidden_act='relu', init='HeUniform', loss_func='mean_squared_error'):
         """Template model for both Main and Target Network for the Q-value mapping. Layers should be a list with the number of fully connected nodes per hidden layer"""
 
-        model = Sequential()
-        model.add(Input(shape=(self.n_inputs,)))
+        model = keras.Sequential()
+        model.add(keras.Input(shape=(self.n_inputs,)))
 
         if layers == None:
             print("WARNING: No hidden layers given for Neural Network")
