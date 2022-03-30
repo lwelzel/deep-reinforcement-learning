@@ -19,9 +19,9 @@ def run_parallel_dqns(learning_rate, policy, epsilon, temp,
                       num_iterations, depth=2500, learn_freq=4,
                       target_update_freq=25, sample_batch_size=128,
                       anneal_method=None, render=False,
-                      repeats=1, load=0.9):
+                      repeats=1, load=0.8):
     """
-    Trains many DQN agents in parallel, will use and block load (defaults to 90%) of available cores on the machine
+    Trains many DQN agents in parallel, will use and block load (defaults to 80%) of available cores on the machine
      so that training might significantly slow down other processes.
 
     If input args are not of type np.array it expects single value (ints, floats, bools etc)

@@ -150,6 +150,15 @@ def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er
               learn_freq=4,
               target_update_freq=25, sample_batch_size=128, anneal_method=None, render=False):
     """Callable DQN function for complete runs and parameter optimization"""
+
+    # print()
+    # print(learning_rate, policy, epsilon, temp,
+    #               gamma, hidden_layers, use_er, use_tn,
+    #               num_iterations, depth, learn_freq,
+    #               target_update_freq, sample_batch_size,
+    #               anneal_method, render)
+    # print()
+
     env = gym.make('CartPole-v1')
     pi = DeepQAgent(4, env.action_space, learning_rate, gamma, hidden_layers, use_tn=use_tn, use_er=use_er, depth=depth,
                     sample_batch_size=sample_batch_size)
@@ -162,15 +171,17 @@ def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er
         # we initialize an empty buffer, fill it in with random values first. Later additions then overwrite these random values
     if use_er:
         timesteps = 0
+        done = False
+        s = env.reset()
         for timestep in tqdm(np.arange(depth + 1)):  # +1 to make sure buffer is filled
-            s = env.reset()
-            done = False
-            while not done:
-                a = pi.select_action(s, policy, epsilon, temp)
-                s_next, r, done, _ = env.step(a)
-                pi.buffer.update_buffer(np.array([s, a, r, s_next, done]))
-                timesteps += 1
-                if render: env.render()
+            if done:
+                s = env.reset()
+            a = pi.select_action(s, policy, epsilon, temp)
+            s_next, r, done, _ = env.step(a)
+            pi.buffer.update_buffer(np.array([s, a, r, s_next, done]))
+            timesteps += 1
+            if render: env.render()
+            if timesteps > depth + 1: break
 
     for iter in tqdm(range(num_iterations), leave=False):
         s = env.reset()

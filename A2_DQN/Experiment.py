@@ -35,7 +35,7 @@ def main():
     policy = 'egreedy'  # 'egreedy'
     
     hidden_layers = [12,6]
-    depth = 2500
+    depth = 250
     batch_size = 128
     num_iterations = 250
     target_update_freq = 25  # iterations

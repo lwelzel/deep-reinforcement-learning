@@ -275,3 +275,6 @@ fabric.properties
 # idea
 *.idea
 *.epub
+
+# old projcts
+/A1_TRL
