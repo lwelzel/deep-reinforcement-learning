@@ -47,7 +47,7 @@ def main():
     use_er = True
     use_tn = True
 
-    render = True
+    render = False
     plot = True
     title = r"Softmax $\tau$=1, +TN -ER"
     ###########################

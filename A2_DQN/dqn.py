@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 import time
+from tqdm import tqdm
 from time import perf_counter, strftime, gmtime
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers, optimizers
+# from tensorflow import keras
+from tensorflow.keras import layers, optimizers, Sequential, Input
 import gym
 from buffer_class import MetaBuffer
 from helper import LearningCurvePlot, smooth, softmax, argmax
@@ -41,14 +42,13 @@ class DeepQAgent:
             self.Target_Network = self._initialize_dqn(hidden_layers, hidden_act, init, loss_func)
 
         if use_er:
-            self.buffer = MetaBuffer(depth,sample_batch_size)
-
+            self.buffer = MetaBuffer(depth, sample_batch_size)
 
     def _initialize_dqn(self, hidden_layers=None, hidden_act='relu', init='HeUniform', loss_func='mean_squared_error'):
         """Template model for both Main and Target Network for the Q-value mapping. Layers should be a list with the number of fully connected nodes per hidden layer"""
 
-        model = keras.Sequential()
-        model.add(keras.Input(shape=(self.n_inputs,)))
+        model = Sequential()
+        model.add(Input(shape=(self.n_inputs,)))
 
         if layers == None:
             print("WARNING: No hidden layers given for Neural Network")
@@ -121,17 +121,18 @@ class DeepQAgent:
         # TODO: compare with update from last report
         for i in range(0, len(states)):
             if done_ar[i].any():
-                G = rewards[i,0]  # don't bootstrap
+                G = rewards[i, 0]  # don't bootstrap
             else:
                 next_state = np.reshape(states_next[i], [1, 4])
                 if self.use_tn:
                     max_Q_next = np.max(self.DeepQ_Network.predict(next_state))
                 else:
                     max_Q_next = np.max(self.DeepQ_Network.predict(next_state))
-                G = rewards[i,0] + self.gamma * max_Q_next
+                G = rewards[i, 0] + self.gamma * max_Q_next
 
             # Bellmann's equation
-            Q_current[i, int(actions[i,0])] = (1 - self.learning_rate) * Q_current[i, int(actions[i,0])] + self.learning_rate * G
+            Q_current[i, int(actions[i, 0])] = (1 - self.learning_rate) * Q_current[
+                i, int(actions[i, 0])] + self.learning_rate * G
 
         states = np.reshape(states, [len(states), 4])  # reshape to feed into keras
 
@@ -140,89 +141,94 @@ class DeepQAgent:
 
     def save(self, rewards):
         """Saves Deep Q-Network and array of rewards"""
-        model_name = f"alpha{self.learning_rate}-gamma{self.gamma}-"+"".join([str(n) for n in self.hidden_layers])
+        model_name = f"alpha{self.learning_rate:.0e}-gamma{self.gamma:.0e}-" + "".join([str(n) for n in self.hidden_layers])
         self.DeepQ_Network.save("DeepQN_{}.h5".format(model_name))
-        np.savetxt("Rewards_{}.csv".format(model_name), a, delimiter=",")
+        np.savetxt("Rewards_{}.csv".format(model_name), rewards, delimiter=",")
 
 
-
-def learn_dqn(learning_rate,policy,epsilon,temp,gamma,hidden_layers,use_er,use_tn,num_iterations,depth=2500,learn_freq=4,
-              target_update_freq=25,sample_batch_size=128,anneal_method=None,render=False):
+def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er, use_tn, num_iterations, depth=2500,
+              learn_freq=4,
+              target_update_freq=25, sample_batch_size=128, anneal_method=None, render=False):
     """Callable DQN function for complete runs and parameter optimization"""
     env = gym.make('CartPole-v1')
-    pi = DeepQAgent(4, env.action_space, learning_rate, gamma, hidden_layers, use_tn=use_tn, use_er=use_er, depth=depth, sample_batch_size=sample_batch_size)
+    pi = DeepQAgent(4, env.action_space, learning_rate, gamma, hidden_layers, use_tn=use_tn, use_er=use_er, depth=depth,
+                    sample_batch_size=sample_batch_size)
 
-    all_rewards = np.full(shape=num_iterations, fill_value=np.nan, dtype=np.float64) #use to keep track of learning curve
+    all_rewards = np.full(shape=num_iterations, fill_value=np.nan,
+                          dtype=np.float64)  # use to keep track of learning curve
     if not anneal_method == None:
-        epsilon = 1.    
+        epsilon = 1.
 
-
-    #we initialize an empty buffer, fill it in with random values first. Later additions then overwrite these random values
+        # we initialize an empty buffer, fill it in with random values first. Later additions then overwrite these random values
     if use_er:
         timesteps = 0
-        while timesteps < depth+1: #+1 to make sure buffer is filled
+        for timestep in tqdm(np.arange(depth + 1)):  # +1 to make sure buffer is filled
             s = env.reset()
             done = False
             while not done:
                 a = pi.select_action(s, policy, epsilon, temp)
                 s_next, r, done, _ = env.step(a)
-                pi.buffer.update_buffer(np.array([s,a,r,s_next,done]))
+                pi.buffer.update_buffer(np.array([s, a, r, s_next, done]))
                 timesteps += 1
                 if render: env.render()
 
-    for iter in range(num_iterations):
+    for iter in tqdm(range(num_iterations), leave=False):
         s = env.reset()
         done = False
         episode_reward = 0
 
         while not done:
             a = pi.select_action(s, policy, epsilon, temp)
-            s_next, r, done , _ = env.step(a)
+            s_next, r, done, _ = env.step(a)
             episode_reward += r
             if pi.use_er:
-                pi.buffer.update_buffer(np.array([s,a,r,s_next,done]))
+                pi.buffer.update_buffer(np.array([s, a, r, s_next, done]))
 
-        
+
             else:
-                pi.one_step_update(s,a,r,s_next,done) #one-step 'dumb' update
-            
+                pi.one_step_update(s, a, r, s_next, done)  # one-step 'dumb' update
+
             s = s_next
             if render: env.render()
 
         all_rewards[iter] = episode_reward
-        if render: print("Iteration {0}: Timesteps survived: {1} ({2})".format(iter, int(episode_reward),round(epsilon,2)))
+        if render: print(
+            "Iteration {0}: Timesteps survived: {1} ({2})".format(iter, int(episode_reward), round(epsilon, 2)))
 
-        if anneal_method == 'linear': epsilon -= (1.-0.1)/(num_iterations)
+        if anneal_method == 'linear': epsilon -= (1. - 0.1) / (num_iterations)
 
         if pi.use_er:
             batch = pi.buffer.sample
             batch = np.asarray(batch).astype('float32')
-            pi.update(batch[:,0],batch[:,1],batch[:,2],batch[:,3],batch[:,4])
-            
+            pi.update(batch[:, 0], batch[:, 1], batch[:, 2], batch[:, 3], batch[:, 4])
 
         if pi.use_tn and iter % target_update_freq == 0:
             if render: print("Updating Target Network")
             pi.Target_Network.set_weights(pi.DeepQ_Network.get_weights())
 
-
-    #save model and learning curve
-
+    # save model and learning curve
 
     env.close()
     pi.save(all_rewards)
 
+    # TODO: this should not return rewards if we save them somewhere
+    # because of memory safety etc.
     return all_rewards
 
-            
-    
-    
-            
-    
-    
-    
 
+def wrapper_dqn_learn_save(learning_rate, policy, epsilon, temp,
+                           gamma, hidden_layers, use_er, use_tn,
+                           num_iterations, depth=2500, learn_freq=4,
+                           target_update_freq=25, sample_batch_size=128,
+                           anneal_method=None, render=False):
+    rewards = learn_dqn(learning_rate, policy, epsilon, temp,
+                        gamma, hidden_layers, use_er, use_tn,
+                        num_iterations, depth, learn_freq,
+                        target_update_freq, sample_batch_size,
+                        anneal_method, render)
 
-
+    # TODO: save rewards externally????
+    # why?
 
 
 
@@ -304,7 +310,7 @@ def play_dqn():
         if pi.use_er:
             batch = pi.buffer.sample
             batch = np.asarray(batch).astype('float32')
-            pi.update(batch[:,0],batch[:,1],batch[:,2],batch[:,3],batch[:,4])
+            pi.update(batch[:, 0], batch[:, 1], batch[:, 2], batch[:, 3], batch[:, 4])
 
         # epsilon annealing schedule?
         # if epsilon > 0.1 and (iter+1) % 25 == 0:
