@@ -14,7 +14,7 @@ def average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gam
     now = time.time()
     
     for rep in range(n_repetitions): # Loop over repetitions
-        learn_dqn(learning_rate,policy,epsilon,temp,gamma,hidden_layers,use_er,use_tn,num_iterations,depth,learn_freq,\
+        rewards = learn_dqn(learning_rate,policy,epsilon,temp,gamma,hidden_layers,use_er,use_tn,num_iterations,depth,learn_freq,\
                   target_update_freq,sample_batch_size=128,anneal_method="linear",render=False)
 
         reward_results[rep] = rewards
