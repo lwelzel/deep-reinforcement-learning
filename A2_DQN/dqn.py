@@ -11,7 +11,9 @@ from tensorflow.keras import layers, optimizers # , Sequential, Input
 import gym
 from buffer_class import MetaBuffer
 from helper import LearningCurvePlot, smooth, softmax, argmax
+import h5py
 
+import_time = f"{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
 
 class DeepQAgent:
     def __init__(self, n_inputs,
@@ -43,6 +45,8 @@ class DeepQAgent:
 
         if use_er:
             self.buffer = MetaBuffer(depth, sample_batch_size)
+
+        self.save_tries = 0
 
     def _initialize_dqn(self, hidden_layers=None, hidden_act='relu', init='HeUniform', loss_func='mean_squared_error'):
         """Template model for both Main and Target Network for the Q-value mapping. Layers should be a list with the number of fully connected nodes per hidden layer"""
@@ -140,11 +144,37 @@ class DeepQAgent:
         self.DeepQ_Network.fit(states, Q_current, epochs=1, verbose=0)
 
     def save(self, rewards):
+        rewards = rewards[np.isfinite(rewards)]
         """Saves Deep Q-Network and array of rewards"""
-        model_name = f"alpha{self.learning_rate:.0e}-gamma{self.gamma:.0e}-" + "".join([str(n) for n in self.hidden_layers])
-        self.DeepQ_Network.save("DeepQN_{}.h5".format(model_name))
-        np.savetxt("Rewards_{}.csv".format(model_name), rewards, delimiter=",")
+        dir = Path(f"batch={import_time}-alpha{self.learning_rate:.0e}-gamma{self.gamma:.0e}-" + ", ".join([str(n) for n in self.hidden_layers]))
+        Path(dir).mkdir(parents=True, exist_ok=True)
+        model_name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_s{self.save_tries}"
+        self.save_tries += 1
 
+        try:
+            self.DeepQ_Network.save(dir / "DeepQN_model_{}.h5".format(model_name))
+            f = h5py.File(dir / "Rewards_{}.h5".format(model_name), 'w')
+            f.create_dataset("rewards", data=rewards)
+
+            ### save simulation data to h5 file
+            meta_dict = {"alpha": self.learning_rate,
+                         "gamma": self.gamma,
+                         "buffer_shape": self.buffer._buffer.shape,
+                         "buffer_method": "random_sample",
+                         "buffer_sample": 128,
+                         "method": "egreedy",
+                         "method_para": 0.1,  #epsilon
+                         "other": "other_para"
+                         }
+
+            # Store metadata in hdf5 file
+            for k in meta_dict.keys():
+                f.attrs[k] = meta_dict[k]
+            f.close()
+        except BaseException:
+            # this is the first time I use recursion as a safety feature, wow!
+            print(f"!! a result file could not be saved, trying again !!")
+            self.save(rewards)
 
 def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er, use_tn, num_iterations, depth=2500,
               learn_freq=4,
@@ -242,9 +272,9 @@ def play_dqn():
     temp = 1.
     policy = 'egreedy'  # 'egreedy'
 
-    depth = 2500
+    depth = 100
     batch_size = 128
-    num_iterations = 250
+    num_iterations = 20
     target_update_freq = 25  # iterations
     max_training_batch = int(1e6)  # storage arrays
     # training_data_shape = (max_training_batch, 1)
@@ -325,6 +355,7 @@ def play_dqn():
             # if e_anneal and iter % (4*target_update_freq) == 0 and epsilon > 1.1: #want it at ~0.1, but rounding errors can mess this up
             #    epsilon -= 0.1
             #    print("Annealed epsilon (new: {})".format(epsilon))
+    pi.save(rewards)
 
     # Plot learning curve
     if plot:

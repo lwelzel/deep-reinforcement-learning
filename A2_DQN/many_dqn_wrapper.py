@@ -61,7 +61,7 @@ def main():
     run_parallel_dqns(learning_rate=0.01, policy='egreedy', epsilon=0.1, temp=1.,
                       gamma=1., hidden_layers=[12,6], use_er=True, use_tn=True,
                       num_iterations=250, depth=250, learn_freq=4,
-                      target_update_freq=25, sample_batch_size=128,
+                      target_update_freq=25, sample_batch_size=100,
                       anneal_method=None, render=False,
                       repeats=1, load=0.9)
     return
