@@ -27,11 +27,11 @@ def read_all_rewards(dir):
 
     rewards = rewards[:, :min_len]
 
-    label="example_label"
+    label = f"example_label (n={len(headers)})"
 
     return rewards, label
 
-def plot_rewards_batch(rewards, label, window=51, fig="rewards"):
+def plot_rewards_batch(rewards, label, window=51, sigma=1, fig="rewards"):
     fig = plt.figure(num=fig)
     ax = np.array(fig.axes).flatten()[0]
 
@@ -44,21 +44,22 @@ def plot_rewards_batch(rewards, label, window=51, fig="rewards"):
     ax.plot(smooth_mean,
             label=label)
     ax.fill_between(np.arange(len(smooth_mean)),
-                    smooth_mean + smooth_std,
-                    smooth_mean - smooth_std,
-                    alpha=0.1)
+                    np.clip(smooth_mean + smooth_std * sigma, a_min=0., a_max=None),
+                    np.clip(smooth_mean - smooth_std * sigma, a_min=0., a_max=None),
+                    alpha=0.1,
+                    label=f"{sigma} "r"$\sigma$ CI")
 
 def plot_rewards_comparison(*args):
     fig, ax = plt.subplots(num="rewards",
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, label = read_all_rewards(Path("batch=2022-03-31-11-20-29-alpha1e-02-gamma1e+00-12, 6"))
-    plot_rewards_batch(rewards, label, window=11)
+    rewards, label = read_all_rewards(Path("batch=2022-03-31-13-27-51-alpha1e-02-gamma1e+00-12, 6"))
+    plot_rewards_batch(rewards, label, window=51)
 
     ax.set_xlabel('Episode [-]')
     ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'Rewards')
+    ax.set_title(f'DQN Rewards during Training')
     ax.legend()
 
     # fig.suptitle('example sup title', fontsize=16)

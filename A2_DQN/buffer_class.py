@@ -85,6 +85,59 @@ class MetaBuffer(object):
         return self._rng.choice(self._buffer, self._sample_batch_length, replace=False, )
 
 
+class PrioBuffer(MetaBuffer):
+    """
+    CLass for prioritization buffer.
+    Adds prioritization for each buffer sample that are used to draw greedy/exploratory samples.
+    """
+    n_args = 6  # s(t), a(t), r(t), s(t+1), done(t+1), priority
+    # TODO: find better name
+    n_actions_depth = 4
+    dtype = np.float64  # might want to change this for discretization
+
+    def __init__(self, depth=int(1e5), sample_batch_length=int(1e4), prio_temp=0.75, min_prio=0.01, **kwargs):
+        super(PrioBuffer).__init__(depth, sample_batch_length, **kwargs)
+
+        self.prio_temp = prio_temp  # annealing (together with epsilon?)
+        self.min_prio = min_prio
+
+        self._buffer[:5] = np.clip(self._buffer[:5], a_min=self.min_prio, a_max=1.)
+
+
+    def update_buffer(self, transition: np.ndarray):
+        """
+        Updates the replay buffer with the transition.
+        The transition is a tuple or np.array of (s(t), a(t), r(t), s(t+1), done(t+1))
+        If the transition is a tuple it will be implicitly be cast to a np.array with type self.__class__.dtype
+
+        :param transition: a tuple of s(t), a(t), r(t), s(t+1), done(t+1), expected_reward
+        """
+
+        # TODO: verify initial function with all the same values
+        transition[5] = np.clip(np.power(transition[5],
+                                         self.prio_temp) / np.sum(np.power(self._buffer[:, 5],
+                                                                           self.prio_temp)),
+                                a_min=self.min_prio, a_max=1.)
+
+        # TODO: avoid packing in the function calling the update, *args tuple or implicit to-tuple cast?
+        # TODO: should instead cast to right shape, write @staticmethod?
+        for i, column in enumerate(transition):
+            self._transition[i, :] = column
+
+        np.put(a=self._buffer,
+               ind=np.arange(self._step * self._transition_length,
+                             self._step * self._transition_length + self._transition_length),
+               v=self._transition, mode="wrap")
+        self._step += 1
+
+    @property
+    def sample(self):
+        return self._rng.choice(self._buffer[:, :5],
+                                self._sample_batch_length,
+                                replace=False,
+                                p=self._buffer[5])
+
+
 if __name__ == "__main__":
     sample_batch_length = 10
     meta_buffer = MetaBuffer(depth=1000, sample_batch_length=sample_batch_length)

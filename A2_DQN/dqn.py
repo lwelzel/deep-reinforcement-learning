@@ -92,7 +92,10 @@ class DeepQAgent:
             p = softmax(actions, temp)
             a = np.random.choice([0, 1], p=p)
 
-        return a
+        # for TD error
+        expected_reward = actions[a]
+
+        return a, expected_reward
 
     def one_step_update(self, s, a, r, s_next, done):
 
@@ -198,7 +201,7 @@ def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er
         for timestep in tqdm(np.arange(depth + 1)):  # +1 to make sure buffer is filled
             if done:
                 s = env.reset()
-            a = pi.select_action(s, policy, epsilon, temp)
+            a, expected_reward = pi.select_action(s, policy, epsilon, temp)
             s_next, r, done, _ = env.step(a)
             pi.buffer.update_buffer(np.array([s, a, r, s_next, done]))
             timesteps += 1
@@ -210,7 +213,7 @@ def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er
         episode_reward = 0
 
         while not done:
-            a = pi.select_action(s, policy, epsilon, temp)
+            a, expected_reward = pi.select_action(s, policy, epsilon, temp)
             s_next, r, done, _ = env.step(a)
             episode_reward += r
             if pi.use_er:
@@ -305,7 +308,10 @@ def play_dqn():
             done = False
 
             while not done:
-                a = pi.select_action(s, policy=policy, epsilon=epsilon, temp=temp)
+                # need to update network to assign prios?
+                # probably not since we want to *stop* the DQN from learning before buffer is full
+                # if prios are all same value -> equal prio
+                a, expected_reward = pi.select_action(s, policy=policy, epsilon=epsilon, temp=temp)
                 s_next, r, done, _ = env.step(a)
                 if render:
                     env.render()
@@ -320,7 +326,7 @@ def play_dqn():
 
         # one training iteration
         while not done:
-            a = pi.select_action(s, policy=policy, epsilon=epsilon, temp=temp)
+            a, expected_reward = pi.select_action(s, policy=policy, epsilon=epsilon, temp=temp)
             s_next, r, done, _ = env.step(a)
             if render:
                 env.render()
