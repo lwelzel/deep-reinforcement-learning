@@ -12,7 +12,7 @@ class LearningCurvePlot:
 
     def __init__(self, title=None):
         self.fig, self.ax = plt.subplots()
-        self.ax.set_xlabel('Time')
+        self.ax.set_xlabel('Timestep')
         self.ax.set_ylabel('Total Reward')
         if title is not None:
             self.ax.set_title(title)
