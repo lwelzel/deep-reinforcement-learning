@@ -61,9 +61,9 @@ def run_parallel_dqns(learning_rate, policy, epsilon, temp,
 
 def main():
     run_parallel_dqns(learning_rate=0.01, policy='egreedy', epsilon=0.05, temp=1.,
-                      gamma=1., hidden_layers=[12, 6], use_er=True, use_tn=True,
-                      num_iterations=500, depth=10000, learn_freq=4,
-                      target_update_freq=5, sample_batch_size=500,
+                      gamma=1., hidden_layers=[32, 32], use_er=True, use_tn=True,
+                      num_iterations=100, depth=5000, learn_freq=4,
+                      target_update_freq=5, sample_batch_size=100,
                       anneal_method=None, render=False,
                       repeats=1, load=0.9)
     return

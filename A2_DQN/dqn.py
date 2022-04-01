@@ -101,8 +101,6 @@ class DeepQAgent:
         else:
             actions = self.DeepQ_Network.predict(s)[0]
 
-        print(actions)
-
         if policy == 'egreedy':
             if epsilon is None:
                 raise KeyError("Provide an epsilon")
