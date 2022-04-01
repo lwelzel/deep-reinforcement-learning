@@ -37,7 +37,7 @@ def ablation():
     hidden_layers = [12,6]
     depth = 250
     batch_size = 128
-    num_iterations = 5
+    num_iterations = 500
     target_update_freq = 25  # iterations
     learn_freq=4
     max_training_batch = int(1e6)  # storage arrays
@@ -92,7 +92,7 @@ def learn_rate():
     hidden_layers = [12,6]
     depth = 250
     batch_size = 128
-    num_iterations = 5
+    num_iterations = 500
     target_update_freq = 25  # iterations
     learn_freq=4
     max_training_batch = int(1e6)  # storage arrays
