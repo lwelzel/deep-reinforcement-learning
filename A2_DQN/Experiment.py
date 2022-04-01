@@ -110,7 +110,7 @@ def learn_rate():
     Plot = LearningCurvePlot(title = "Deep Q-Learning: Various Learning Rates Compared")
     n_repetitions = 10
     
-    for learning_rate in [0.01,0.1,0.25,0.5]
+    for learning_rate in [0.01,0.1,0.25,0.5]:
         learning_curve = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
                             use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
         Plot.add_curve(learning_curve,label=r'$\alpha$ = {}'.format(learning_rate))
