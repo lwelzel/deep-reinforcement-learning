@@ -3,7 +3,7 @@
 from pathlib import Path
 import time
 from tqdm import tqdm
-from time import perf_counter, strftime, gmtime, time
+from time import perf_counter, strftime, gmtime, time, sleep
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -38,8 +38,9 @@ class DeepQAgent:
                  use_tn=False,
                  use_er=False,
                  depth=2500,
-                 sample_batch_size=64,
-                 id=0):
+                 sample_batch_size=100,
+                 id=0,
+                 buffer_type=None):
 
         self.n_inputs = n_inputs  # can we pull this from somewhere else?
         self.action_space = action_space
@@ -55,7 +56,13 @@ class DeepQAgent:
             self.Target_Network = self._initialize_dqn(hidden_layers, hidden_act, init, loss_func)
 
         if use_er:
-            self.buffer = MetaBuffer(depth, sample_batch_size)
+            if buffer_type is None:
+                self.buffer = MetaBuffer(depth, sample_batch_size)
+            elif buffer_type == "priority":
+                self.buffer = MetaBuffer(depth, sample_batch_size)
+            else:
+                raise KeyError("No valid buffer type provided.")
+
 
         self.save_tries = 0
 
@@ -93,6 +100,8 @@ class DeepQAgent:
             actions = self.Target_Network.predict(s)[0]
         else:
             actions = self.DeepQ_Network.predict(s)[0]
+
+        print(actions)
 
         if policy == 'egreedy':
             if epsilon is None:
@@ -196,12 +205,13 @@ class DeepQAgent:
 def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er, use_tn, num_iterations, depth=2500,
               learn_freq=4,
               target_update_freq=25, sample_batch_size=128, anneal_method=None, render=False,
-              id=0, maxtime=60. * 60 * 24 * 10):
+              id=0, maxtime=60. * 60 * 24 * 10,
+              buffer_type=None):
     """Callable DQN function for complete runs and parameter optimization"""
 
     env = gym.make('CartPole-v1')
     pi = DeepQAgent(4, env.action_space, learning_rate, gamma, hidden_layers, use_tn=use_tn, use_er=use_er, depth=depth,
-                    sample_batch_size=sample_batch_size, id=id)
+                    sample_batch_size=sample_batch_size, id=id, buffer_type=buffer_type)
 
     all_rewards = np.full(shape=num_iterations, fill_value=np.nan,
                           dtype=np.float64)  # use to keep track of learning curve
@@ -301,10 +311,10 @@ def play_dqn():
     temp = 1.
     policy = 'egreedy'  # 'egreedy'
 
-    depth = 100
-    batch_size = 128
-    num_iterations = 20
-    target_update_freq = 25  # iterations
+    depth = 500
+    batch_size = 50
+    num_iterations = 50
+    target_update_freq = 10  # iterations
     max_training_batch = int(1e6)  # storage arrays
     # training_data_shape = (max_training_batch, 1)
 
@@ -341,7 +351,7 @@ def play_dqn():
                 s_next, r, done, _ = env.step(a)
                 if render:
                     env.render()
-                    time.sleep(1e-3)
+                    sleep(1e-3)
                 pi.buffer.update_buffer(np.array([s, a, r, s_next, done]))
                 timesteps += 1
 
@@ -356,7 +366,7 @@ def play_dqn():
             s_next, r, done, _ = env.step(a)
             if render:
                 env.render()
-                time.sleep(1e-3)
+                sleep(1e-3)
 
             episode_reward += r
             if pi.use_er:
