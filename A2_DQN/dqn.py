@@ -3,7 +3,7 @@
 from pathlib import Path
 import time
 from tqdm import tqdm
-from time import perf_counter, strftime, gmtime
+from time import perf_counter, strftime, gmtime, time
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -12,6 +12,17 @@ import gym
 from buffer_class import MetaBuffer
 from helper import LearningCurvePlot, smooth, softmax, argmax
 import h5py
+import os
+
+# CUDA settings: one gpu, variable memory to avoid blocking of all memory (on GPU)
+try:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+except BaseException:
+    pass
 
 import_time = f"{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
 
@@ -27,8 +38,8 @@ class DeepQAgent:
                  use_tn=False,
                  use_er=False,
                  depth=2500,
-                 sample_batch_size=64
-                 ):
+                 sample_batch_size=64,
+                 id=0):
 
         self.n_inputs = n_inputs  # can we pull this from somewhere else?
         self.action_space = action_space
@@ -47,6 +58,11 @@ class DeepQAgent:
             self.buffer = MetaBuffer(depth, sample_batch_size)
 
         self.save_tries = 0
+
+        self.id = id
+        self.model_name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_id{self.id}"
+        self.dir = Path(f"batch={import_time}-alpha{self.learning_rate:.0e}-gamma{self.gamma:.0e}-" + ", ".join(
+            [str(n) for n in self.hidden_layers]))
 
     def _initialize_dqn(self, hidden_layers=None, hidden_act='relu', init='HeUniform', loss_func='mean_squared_error'):
         """Template model for both Main and Target Network for the Q-value mapping. Layers should be a list with the number of fully connected nodes per hidden layer"""
@@ -149,14 +165,12 @@ class DeepQAgent:
     def save(self, rewards):
         rewards = rewards[np.isfinite(rewards)]
         """Saves Deep Q-Network and array of rewards"""
-        dir = Path(f"batch={import_time}-alpha{self.learning_rate:.0e}-gamma{self.gamma:.0e}-" + ", ".join([str(n) for n in self.hidden_layers]))
-        Path(dir).mkdir(parents=True, exist_ok=True)
-        model_name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_s{self.save_tries}"
+        Path(self.dir).mkdir(parents=True, exist_ok=True)
         self.save_tries += 1
 
         try:
-            self.DeepQ_Network.save(dir / "DeepQN_model_{}.h5".format(model_name))
-            f = h5py.File(dir / "Rewards_{}.h5".format(model_name), 'w')
+            self.DeepQ_Network.save(self.dir / "DeepQN_model_{}.h5".format(self.model_name))
+            f = h5py.File(self.dir / "Rewards_{}.h5".format(self.model_name), 'w')
             f.create_dataset("rewards", data=rewards)
 
             ### save simulation data to h5 file
@@ -181,12 +195,13 @@ class DeepQAgent:
 
 def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er, use_tn, num_iterations, depth=2500,
               learn_freq=4,
-              target_update_freq=25, sample_batch_size=128, anneal_method=None, render=False):
+              target_update_freq=25, sample_batch_size=128, anneal_method=None, render=False,
+              id=0, maxtime=60. * 60 * 24 * 10):
     """Callable DQN function for complete runs and parameter optimization"""
 
     env = gym.make('CartPole-v1')
     pi = DeepQAgent(4, env.action_space, learning_rate, gamma, hidden_layers, use_tn=use_tn, use_er=use_er, depth=depth,
-                    sample_batch_size=sample_batch_size)
+                    sample_batch_size=sample_batch_size, id=id)
 
     all_rewards = np.full(shape=num_iterations, fill_value=np.nan,
                           dtype=np.float64)  # use to keep track of learning curve
@@ -198,7 +213,7 @@ def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er
         timesteps = 0
         done = False
         s = env.reset()
-        for timestep in tqdm(np.arange(depth + 1)):  # +1 to make sure buffer is filled
+        for timestep in tqdm(np.arange(depth + 1), leave=False):  # +1 to make sure buffer is filled
             if done:
                 s = env.reset()
             a, expected_reward = pi.select_action(s, policy, epsilon, temp)
@@ -206,6 +221,9 @@ def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er
             pi.buffer.update_buffer(np.array([s, a, r, s_next, done]))
             timesteps += 1
             if render: env.render()
+
+    save_reps = int(0.1 * num_iterations)
+    start_time = time()
 
     for iter in tqdm(range(num_iterations), leave=False):
         s = env.reset()
@@ -240,6 +258,14 @@ def learn_dqn(learning_rate, policy, epsilon, temp, gamma, hidden_layers, use_er
         if pi.use_tn and iter % target_update_freq == 0:
             if render: print("Updating Target Network")
             pi.Target_Network.set_weights(pi.DeepQ_Network.get_weights())
+
+        if (time() - start_time) > maxtime:
+            pi.save(all_rewards)
+            print(f"Maximum time exceeded. Stopped learning. Elapsed time: {(time() - start_time) / 60.:.1f} minutes.")
+            break
+
+        if iter % save_reps == 0.:
+            pi.save(all_rewards)
 
     # save model and learning curve
 

@@ -37,6 +37,8 @@ def run_parallel_dqns(learning_rate, policy, epsilon, temp,
         anneal_method = np.repeat(anneal_method, av_cores * repeats)
         render = np.repeat(render, av_cores * repeats)
 
+    ids = np.arange(len(learning_rate))
+
     print(f"Starting pool with {av_cores} cores. That is {av_cores/mp.cpu_count() * 100:.0f}% of all available cores.\n"
           f"These cores are blocked until the run is finished. You can change the percentage via the 'load' option.")
     print(f"\tAll data structures are pre-initialized so that, if the allocated memory is insufficient,\n"
@@ -50,7 +52,7 @@ def run_parallel_dqns(learning_rate, policy, epsilon, temp,
                   gamma, hidden_layers, use_er, use_tn,
                   num_iterations, depth, learn_freq,
                   target_update_freq, sample_batch_size,
-                  anneal_method, render))
+                  anneal_method, render, ids))
 
     pool.close()
     pool.join()
@@ -60,8 +62,8 @@ def run_parallel_dqns(learning_rate, policy, epsilon, temp,
 def main():
     run_parallel_dqns(learning_rate=0.01, policy='egreedy', epsilon=0.05, temp=1.,
                       gamma=1., hidden_layers=[12, 6], use_er=True, use_tn=True,
-                      num_iterations=500, depth=250, learn_freq=4,
-                      target_update_freq=5, sample_batch_size=50,
+                      num_iterations=500, depth=10000, learn_freq=4,
+                      target_update_freq=5, sample_batch_size=500,
                       anneal_method=None, render=False,
                       repeats=1, load=0.9)
     return

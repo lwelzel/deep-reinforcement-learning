@@ -12,7 +12,7 @@ def read_h5_reward_file(loc):
 
     return rewards, header
 
-def read_all_rewards(dir):
+def read_all_rewards(dir, fig="rewards", plot_all_paths=True):
     files = Path(dir).rglob(f"*Rewards*.h5")
     files = np.array([path for path in files]).flatten()
     rewards = np.ones((len(files), 5000))
@@ -24,6 +24,11 @@ def read_all_rewards(dir):
         headers.append(header)
         rewards[i, :len(l_rewards)] = l_rewards
         min_len = np.minimum(min_len, len(l_rewards))
+        if plot_all_paths:
+            fig = plt.figure(num=fig)
+            ax = np.array(fig.axes).flatten()[0]
+            ax.plot(smooth(l_rewards, window=21, poly=1),
+                    c="gray", alpha=0.5, ls="dashed", lw=0.75)
 
     rewards = rewards[:, :min_len]
 
@@ -54,8 +59,11 @@ def plot_rewards_comparison(*args):
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, label = read_all_rewards(Path("batch=2022-03-31-13-27-51-alpha1e-02-gamma1e+00-12, 6"))
+    rewards, label = read_all_rewards(Path("batch=2022-04-01-09-18-07-alpha1e-02-gamma1e+00-12, 6"))
     plot_rewards_batch(rewards, label, window=51)
+
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., None)
 
     ax.set_xlabel('Episode [-]')
     ax.set_ylabel('Mean reward [-]')
