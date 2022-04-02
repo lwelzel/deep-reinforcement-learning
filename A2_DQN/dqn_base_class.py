@@ -34,7 +34,7 @@ class DQNAgent:
                  state_space, action_space,
                  policy="egreedy",
                  learning_rate=0.01, gamma=0.8,
-                 epsilon=0.5, temperature=1.,
+                 epsilon=1., temperature=1.,
                  hidden_layers=None, hidden_act='relu', kernel_init='HeUniform', loss_func='mean_squared_error',
                  use_tn=False, use_er=False,
                  buffer_type=None, buffer_depth=2500, sample_batch_size=100,
@@ -47,7 +47,7 @@ class DQNAgent:
         self.epsilon = epsilon
         self.epsilon_max = epsilon
         self.epsilon_min = 0.01
-        self.decay = 0.9975
+        self.decay = 0.99
         self.temperature = temperature
 
         if policy == "egreedy":
@@ -73,7 +73,7 @@ class DQNAgent:
         self.use_tn = use_tn
         self.use_er = use_er
 
-        self.smart_update = True
+        self.smart_update = False
         self.soft_tau_min = 0.01
         self.soft_tau_max = 0.5
 
@@ -121,16 +121,28 @@ class DQNAgent:
     def replay(self):
         # s(t), a(t), r(t), s(t+1), done(t+1)
         states, actions, rewards, states_next, dones = self.buffer.sample
+        actions = actions.astype(int).reshape((-1, 1))
 
         target = self.online_DQN_network.predict(states)
         # target_static = np.copy(target)  # for PER
         target_next = self.online_DQN_network.predict(states_next)
         target_target = self.target_DQN_network.predict(states_next) # for DDQN
 
-        online_target_actions = np.argmax(target_next, axis=1)
-        target[:, actions.astype(int).flatten()] = rewards \
-                                                   + (1 - dones) \
-                                                   * self.gamma * target_target[:, online_target_actions]
+        online_target_actions = np.argmax(target_next, axis=1).reshape((-1, 1))
+
+        # values = (rewards + (1 - dones) * self.gamma * np.amax(target_next, axis=1)).reshape((-1, 1))
+        # np.put_along_axis(target_target, online_target_actions, values, axis=1)
+
+
+        values = (rewards + (1 - dones) * self.gamma * np.take_along_axis(target_target,
+                                                                          online_target_actions,
+                                                                          axis=1)).reshape((-1, 1))
+        np.put_along_axis(target, actions, values, axis=1)
+
+
+        # target[:, actions.astype(int).flatten()] = rewards \
+        #                                            + (1 - dones) \
+        #                                            * self.gamma * target_target[:, online_target_actions]
 
         self.online_DQN_network.fit(states, target,
                                     batch_size=self.buffer.depth, verbose=0)
@@ -154,7 +166,8 @@ class DQNAgent:
 
 
     def anneal_policy_parameter(self, t, t_final):
-        self.epsilon = self.linear_anneal(t, t_final, self.epsilon_max, self.epsilon_min)
+        # self.epsilon = self.linear_anneal(t, t_final, self.epsilon_max, self.epsilon_min)
+        self.epsilon = self.epsilon * self.decay
         self.temperature = self.linear_anneal(t, t_final, self.soft_tau_min, self.soft_tau_max)
 
     def select_action_egreedy(self, s):
@@ -317,7 +330,7 @@ def test_run():
     policy = "egreedy"
     learning_rate = 0.01
     gamma = 0.9
-    epsilon = 0.8
+    epsilon = 1.
     temperature = 1.
     hidden_layers = [512, 256, 64]
     hidden_act = 'relu'
@@ -326,8 +339,8 @@ def test_run():
     use_tn = True
     use_er = True
     buffer_type = None
-    buffer_depth = 1000
-    sample_batch_size = 30
+    buffer_depth = 2000
+    sample_batch_size = 60
     name = f"{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
     id = 0
 
@@ -384,7 +397,7 @@ def test_run():
             if pi.use_er:
                 pi.replay()
 
-        print(f"Epoch rewards: {rewards[epoch]:3.0f}  ({epoch:3.0f}/{num_epochs:3.0f})")
+        print(f"{epoch:03.0f}/{num_epochs:03.0f} \t rewards: {rewards[epoch]:03.0f} \t epsilon: {pi.epsilon:01.04f}")
 
         if pi.use_tn and done:  # and epoch % target_update_freq == 0:
             pi.update_target_network(rewards[epoch], max_epoch_env_steps)

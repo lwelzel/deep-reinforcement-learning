@@ -7,7 +7,7 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
                       policy="egreedy",
                       learning_rate=0.01, gamma=0.8,
                       epsilon=0.5, temperature=1.,
-                      hidden_layers=[32, 32], hidden_act='relu', kernel_init='HeUniform',
+                      hidden_layers=[512, 256, 64], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
                       use_tn=True, use_er=True,
                       buffer_type=None, buffer_depth=2500, sample_batch_size=100,
@@ -76,14 +76,14 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
 
 
 def main():
-    run_parallel_dqns(num_epochs=500, max_epoch_env_steps=200, target_update_freq=4,
+    run_parallel_dqns(num_epochs=150, max_epoch_env_steps=200, target_update_freq=4,
                       policy="egreedy",
                       learning_rate=0.01, gamma=0.9,
-                      epsilon=0.9, temperature=1.,
+                      epsilon=1., temperature=1.,
                       hidden_layers=[512, 256, 64], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
                       use_tn=True, use_er=True,
-                      buffer_type=None, buffer_depth=2000, sample_batch_size=64,
+                      buffer_type=None, buffer_depth=2000, sample_batch_size=100,
                       id=0,
                       repeats=1, load=0.9)
     return
