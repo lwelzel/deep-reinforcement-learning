@@ -9,7 +9,7 @@ class MetaBuffer(object):
     n_args = 5  # s(t), a(t), r(t), s(t+1), done(t+1)
     # TODO: find better name
     n_actions_depth = 4
-    dtype = np.float64  # might want to change this for discretization
+    dtype = "float32"  # might want to change this for discretization
 
     def __init__(self, depth=int(1e5), sample_batch_length=int(1e4), **kwargs):
         super(MetaBuffer).__init__()
@@ -18,9 +18,10 @@ class MetaBuffer(object):
 
         # meta selection and self-knowledge
         self._step = 0
-        self.buffer_selecter = lambda **buffer_kwargs: None
+        self.depth = depth
+        self._buffer_idx = np.arange(depth)
         # we want the batches we draw to be sufficiently random
-        _max_batch_fill = 0.1
+        _max_batch_fill = 0.2
 
         # buffer
         # s(t), a(t), r(t), s(t+1), done(t+1)
@@ -33,9 +34,9 @@ class MetaBuffer(object):
 
         self._buffer = np.zeros(shape=(depth,
                                        self.__class__.n_args,
-                                       self.__class__.n_actions_depth), dtype=object)
+                                       self.__class__.n_actions_depth), dtype=self.__class__.dtype)
         self._transition = np.zeros(shape=(self.__class__.n_args,
-                                           self.__class__.n_actions_depth), dtype=object)
+                                           self.__class__.n_actions_depth), dtype=self.__class__.dtype)
         self._transition_length = np.prod(self._transition.shape)
 
     def __repr__(self):
@@ -45,7 +46,7 @@ class MetaBuffer(object):
             hex(id(self))
         )
 
-    def update_buffer(self, transition: np.ndarray):
+    def update_buffer(self, transition):
         """
         Updates the replay buffer with the transition.
         The transition is a tuple or np.array of (s(t), a(t), r(t), s(t+1), done(t+1))
@@ -59,30 +60,26 @@ class MetaBuffer(object):
         for i, column in enumerate(transition):
             self._transition[i, :] = column
 
-        # TODO: remove is proper reshaping certain
-        # assert _transition.shape == (self.__class__.n_args, self.__class__.n_actions_depth), \
-        #     "transition must be consistent np.ndarray - current required shape: (5, 4)"
-
         np.put(a=self._buffer,
                ind=np.arange(self._step * self._transition_length,
                              self._step * self._transition_length + self._transition_length),
                v=self._transition, mode="wrap")
         self._step += 1
 
-
-    # @classmethod
     def __reset_all__(self):
         self._step = 0
         self._buffer = np.zeros(shape=self._buffer.shape,
-                                dtype=object)
+                                dtype=self.__class__.dtype)
 
     @property
     def sample(self):
-        # for sequential buffer samples:
-        # return np.take(self._buffer, indices, axis=None, out=None, mode='raise')
-        # for single step buffer:
-        # return self._rng.choice(self._buffer, 1, replace=False, )
-        return self._rng.choice(self._buffer, self._sample_batch_length, replace=False, )
+        # this is literally killing me inside
+        idxs = self._rng.choice(self._buffer_idx, self._sample_batch_length, replace=False, )
+        return self._buffer[idxs, 0, :],\
+               self._buffer[idxs, 1, ::self.__class__.n_args],\
+               self._buffer[idxs, 2, ::self.__class__.n_args],\
+               self._buffer[idxs, 3, :],\
+               self._buffer[idxs, 4, ::self.__class__.n_args],
 
 
 class PrioBuffer(MetaBuffer):
@@ -93,7 +90,7 @@ class PrioBuffer(MetaBuffer):
     n_args = 6  # s(t), a(t), r(t), s(t+1), done(t+1), priority
     # TODO: find better name
     n_actions_depth = 4
-    dtype = np.float64  # might want to change this for discretization
+    dtype = "float32"  # might want to change this for discretization
 
     def __init__(self, depth=int(1e5), sample_batch_length=int(1e4), prio_temp=0.75, min_prio=0.01, **kwargs):
         super(PrioBuffer).__init__(depth, sample_batch_length, **kwargs)
@@ -104,7 +101,7 @@ class PrioBuffer(MetaBuffer):
         self._buffer[:5] = np.clip(self._buffer[:5], a_min=self.min_prio, a_max=1.)
 
 
-    def update_buffer(self, transition: np.ndarray):
+    def update_buffer(self, transition):
         """
         Updates the replay buffer with the transition.
         The transition is a tuple or np.array of (s(t), a(t), r(t), s(t+1), done(t+1))
