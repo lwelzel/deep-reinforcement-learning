@@ -38,7 +38,7 @@ class DQNAgent:
                  hidden_layers=None, hidden_act='relu', kernel_init='HeUniform', loss_func='mean_squared_error',
                  use_tn=False, use_er=False,
                  buffer_type=None, buffer_depth=2500, sample_batch_size=100,
-                 id=0):
+                 name="placeholder", id=0):
 
         self.state_space = state_space.shape
         self.learning_rate = learning_rate
@@ -86,7 +86,7 @@ class DQNAgent:
 
         self.id = id
         self.agent_name = f"run={strftime('%Y-%m-%d-%H-%M-%S', gmtime())}_id{self.id}"
-        self.dir = Path(f"batch={import_time}_"
+        self.dir = Path(f"batch={name}_"
                         f"a={self.learning_rate:.0e}_"
                         f"g={self.gamma:.0e}_"
                         f"hlay={tuple(hidden_layers)}")
@@ -114,12 +114,13 @@ class DQNAgent:
 
         target = self.online_DQN_network.predict(states)
         # target_static = np.copy(target)  # for PER
-        target_next = self.online_DQN_network.predict(states_next)
+        target_next = self.target_DQN_network.predict(states_next)
         # target_target = self.target_DQN_network.predict(states_next) # for DDQN
 
         target[:, actions.astype(int).flatten()] = rewards + (1 - dones) * self.gamma * np.amax(target_next, axis=1)
 
-        self.online_DQN_network.fit(states, target, epochs=1, verbose=0)
+        self.online_DQN_network.fit(states, target,
+                                    batch_size=self.buffer.depth, verbose=0)
 
     def update_target_network(self):
         self.target_DQN_network.set_weights(self.online_DQN_network.get_weights())
@@ -198,7 +199,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
         hidden_layers=None, hidden_act='relu', kernel_init='HeUniform', loss_func='mean_squared_error',
         use_tn=False, use_er=False,
         buffer_type=None, buffer_depth=2500, sample_batch_size=100,
-        id=0):
+        name="placeholder", id=0):
     maxtime = 60. * 60 * 24
     env = gym.make('CartPole-v1')
 
@@ -212,7 +213,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
                   hidden_layers=hidden_layers, hidden_act=hidden_act, kernel_init=kernel_init, loss_func=loss_func,
                   use_tn=use_tn, use_er=use_er,
                   buffer_type=buffer_type, buffer_depth=buffer_depth, sample_batch_size=sample_batch_size,
-                  id=id)
+                  name=name, id=id)
 
     env._max_episode_steps = max_epoch_env_steps
     epoch_timesteps = np.arange(max_epoch_env_steps)
@@ -223,7 +224,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
     if use_er:
         done = False
         s = env.reset()
-        for timestep in tqdm(np.arange(buffer_depth + 1)):  # +1 to make sure buffer is filled
+        for timestep in tqdm(np.arange(buffer_depth + 1), leave=False):  # +1 to make sure buffer is filled
             if done:
                 s = env.reset()
             a, expected_reward = pi.select_action(s)
@@ -233,7 +234,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
     save_reps = int(0.1 * num_epochs)
     start_time = time()
 
-    for epoch in tqdm(np.arange(num_epochs)):
+    for epoch in tqdm(np.arange(num_epochs), leave=False):
         s = env.reset()
         done = False
         rewards[epoch] = 0.
@@ -281,6 +282,7 @@ def test_run():
     buffer_type = None
     buffer_depth = 250
     sample_batch_size = 25
+    name = f"{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
     id = 0
 
 
@@ -297,7 +299,7 @@ def test_run():
                   hidden_layers=hidden_layers, hidden_act=hidden_act, kernel_init=kernel_init, loss_func=loss_func,
                   use_tn=use_tn, use_er=use_er,
                   buffer_type=buffer_type, buffer_depth=buffer_depth, sample_batch_size=sample_batch_size,
-                  id=id)
+                  name=name, id=id)
 
     env._max_episode_steps = max_epoch_env_steps
     epoch_timesteps = np.arange(max_epoch_env_steps)

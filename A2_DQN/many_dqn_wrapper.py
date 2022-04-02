@@ -1,7 +1,7 @@
 import numpy as np
 from dqn_base_class import run
 import pathos.multiprocessing as mp
-
+from time import strftime, gmtime
 
 def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=5,
                       policy="egreedy",
@@ -24,6 +24,8 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
     """
     av_cores = int(load * mp.cpu_count())
 
+    name = f"{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
+
     # would probably be easier with repeat :(
     if not isinstance(num_epochs, np.ndarray):
         num_epochs = np.repeat(num_epochs, av_cores * repeats)
@@ -43,6 +45,7 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
         buffer_type = np.repeat(buffer_type, av_cores * repeats)
         buffer_depth = np.repeat(buffer_depth, av_cores * repeats)
         sample_batch_size = np.repeat(sample_batch_size, av_cores * repeats)
+        name = np.repeat(name, av_cores * repeats)
 
     ids = np.arange(len(learning_rate))
 
@@ -65,7 +68,7 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
                           loss_func,
                           use_tn, use_er,
                           buffer_type, buffer_depth, sample_batch_size,
-                          ids))
+                          name, ids))
 
     pool.close()
     pool.join()
@@ -73,14 +76,14 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
 
 
 def main():
-    run_parallel_dqns(num_epochs=500, max_epoch_env_steps=250, target_update_freq=5,
+    run_parallel_dqns(num_epochs=100, max_epoch_env_steps=100, target_update_freq=5,
                       policy="egreedy",
                       learning_rate=0.01, gamma=0.9,
                       epsilon=0.05, temperature=1.,
                       hidden_layers=[32, 32], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
                       use_tn=True, use_er=True,
-                      buffer_type=None, buffer_depth=5000, sample_batch_size=200,
+                      buffer_type=None, buffer_depth=500, sample_batch_size=50,
                       id=0,
                       repeats=1, load=0.9)
     return
