@@ -59,7 +59,7 @@ def plot_rewards_comparison(*args):
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, label = read_all_rewards(Path("batch=2022-04-02-15-01-57_a=1e-02_g=9e-01_hlay=(32, 32)"))
+    rewards, label = read_all_rewards(Path("batch=2022-04-02-17-42-02_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
     plot_rewards_batch(rewards, label, window=51)
 
     ax.set_ylim(0., None)

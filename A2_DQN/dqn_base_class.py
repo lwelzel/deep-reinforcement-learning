@@ -45,6 +45,7 @@ class DQNAgent:
         self.gamma = gamma
         self.policy = policy
         self.epsilon = epsilon
+        self.decay = 0.9975
         self.temperature = temperature
 
         if policy == "egreedy":
@@ -103,7 +104,10 @@ class DQNAgent:
                 model.add(layers.Dense(n_nodes, activation=self.hidden_act, kernel_initializer=self.kernel_init))
 
         model.add(layers.Dense(self.action_space.n, kernel_initializer=self.kernel_init))
-        model.compile(loss=self.loss_func, optimizer=optimizers.Adam(0.001))
+        # model.compile(loss=self.loss_func, optimizer=optimizers.Adam(0.001))
+        model.compile(loss=self.loss_func,
+                      optimizer=optimizers.RMSprop(lr=0.00025, rho=0.95, epsilon=0.01),
+                      metrics=["accuracy"])
 
         model.summary()
         return model
@@ -114,19 +118,24 @@ class DQNAgent:
 
         target = self.online_DQN_network.predict(states)
         # target_static = np.copy(target)  # for PER
-        target_next = self.target_DQN_network.predict(states_next)
-        # target_target = self.target_DQN_network.predict(states_next) # for DDQN
+        target_next = self.online_DQN_network.predict(states_next)
+        target_target = self.target_DQN_network.predict(states_next) # for DDQN
 
-        target[:, actions.astype(int).flatten()] = rewards + (1 - dones) * self.gamma * np.amax(target_next, axis=1)
+        online_target_actions = np.argmax(target_next, axis=1)
+        target[:, actions.astype(int).flatten()] = rewards \
+                                                   + (1 - dones) \
+                                                   * self.gamma * target_target[:, online_target_actions]
 
         self.online_DQN_network.fit(states, target,
                                     batch_size=self.buffer.depth, verbose=0)
+
+        self.epsilon = np.clip(self.epsilon * self.decay, a_min=0.01, a_max=1.)
 
     def update_target_network(self):
         self.target_DQN_network.set_weights(self.online_DQN_network.get_weights())
 
     def select_action_egreedy(self, s):
-        actions = self.target_DQN_network.predict(s.reshape((1, 4)))[0]
+        actions = self.online_DQN_network.predict(s.reshape((1, 4)))[0]
 
         try:
             # should precalculate this and then draw from matrix
@@ -242,16 +251,17 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
         while not done:
             a, expected_reward = pi.select_action(s)
             s_next, r, done, _ = env.step(a)
+            # r = r * done - 100. * (1. - done)
             rewards[epoch] += r
             if use_er:
                 pi.buffer.update_buffer((s, a, r, s_next, done))
             s = s_next
 
-        if pi.use_er:
-            pi.replay()
+            if pi.use_tn and done:  # and epoch % target_update_freq == 0:
+                pi.update_target_network()
 
-        if pi.use_tn and epoch % target_update_freq == 0:
-            pi.update_target_network()
+            if pi.use_er:
+                pi.replay()
 
         if epoch % save_reps == 0.:
             pi.save(rewards)
@@ -267,21 +277,21 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
 
 
 def test_run():
-    num_epochs, max_epoch_env_steps, target_update_freq = 50, 50, 5
+    num_epochs, max_epoch_env_steps, target_update_freq = 100, 150, 5
     policy = "egreedy"
     learning_rate = 0.01
-    gamma = 0.8
-    epsilon = 0.5
+    gamma = 0.9
+    epsilon = 0.8
     temperature = 1.
-    hidden_layers = [32, 32]
+    hidden_layers = [512, 256, 64]
     hidden_act = 'relu'
     kernel_init = 'HeUniform'
     loss_func = 'mean_squared_error'
     use_tn = True
     use_er = True
     buffer_type = None
-    buffer_depth = 250
-    sample_batch_size = 25
+    buffer_depth = 1000
+    sample_batch_size = 30
     name = f"{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
     id = 0
 
@@ -335,12 +345,12 @@ def test_run():
                 pi.buffer.update_buffer((s, a, r, s_next, done))
             s = s_next
 
-        print(f"Epoch rewards: {rewards[epoch]}  ({epoch} / {num_epochs}")
+            if pi.use_er:
+                pi.replay()
 
-        if pi.use_er:
-            pi.replay()
+        print(f"Epoch rewards: {rewards[epoch]:3.0f}  ({epoch:3.0f}/{num_epochs:3.0f})")
 
-        if pi.use_tn and epoch % target_update_freq == 0:
+        if pi.use_tn:
             pi.update_target_network()
 
         if epoch % save_reps == 0.:
@@ -348,11 +358,10 @@ def test_run():
             if (time() - start_time) > maxtime:
                 print(
                     f"Maximum time exceeded. Stopped learning. Elapsed time: {(time() - start_time) / 60.:.1f} minutes.")
-                break
 
-    # save model and learning curve
-    env.close()
-    pi.save(rewards)
+        # save model and learning curve
+        env.close()
+        pi.save(rewards)
 
 
 if __name__ == "__main__":

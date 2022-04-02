@@ -76,14 +76,14 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
 
 
 def main():
-    run_parallel_dqns(num_epochs=100, max_epoch_env_steps=100, target_update_freq=5,
+    run_parallel_dqns(num_epochs=500, max_epoch_env_steps=200, target_update_freq=4,
                       policy="egreedy",
                       learning_rate=0.01, gamma=0.9,
-                      epsilon=0.05, temperature=1.,
-                      hidden_layers=[32, 32], hidden_act='relu', kernel_init='HeUniform',
+                      epsilon=0.9, temperature=1.,
+                      hidden_layers=[512, 256, 64], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
                       use_tn=True, use_er=True,
-                      buffer_type=None, buffer_depth=500, sample_batch_size=50,
+                      buffer_type=None, buffer_depth=2000, sample_batch_size=64,
                       id=0,
                       repeats=1, load=0.9)
     return
