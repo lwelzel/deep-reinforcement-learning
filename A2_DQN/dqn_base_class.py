@@ -45,6 +45,8 @@ class DQNAgent:
         self.gamma = gamma
         self.policy = policy
         self.epsilon = epsilon
+        self.epsilon_max = epsilon
+        self.epsilon_min = 0.01
         self.decay = 0.9975
         self.temperature = temperature
 
@@ -70,6 +72,10 @@ class DQNAgent:
 
         self.use_tn = use_tn
         self.use_er = use_er
+
+        self.smart_update = True
+        self.soft_tau_min = 0.01
+        self.soft_tau_max = 0.5
 
         self.online_DQN_network = self.make_model()
         if use_tn:
@@ -129,10 +135,27 @@ class DQNAgent:
         self.online_DQN_network.fit(states, target,
                                     batch_size=self.buffer.depth, verbose=0)
 
-        self.epsilon = np.clip(self.epsilon * self.decay, a_min=0.01, a_max=1.)
 
-    def update_target_network(self):
-        self.target_DQN_network.set_weights(self.online_DQN_network.get_weights())
+    def update_target_network(self, reward=None, max_reward=None):
+        if self.smart_update:
+            online_weights = self.online_DQN_network.get_weights()
+            target_weights = self.target_DQN_network.get_weights()
+
+            tau = self.linear_anneal(reward, max_reward, self.soft_tau_min, self.soft_tau_max)
+
+            weights = np.array([target_weight * (1. - tau) + online_weight * tau
+                                for online_weight, target_weight
+                                in zip(online_weights, target_weights)],
+                               dtype=object)
+            self.target_DQN_network.set_weights(weights)
+
+        else:
+            self.target_DQN_network.set_weights(self.online_DQN_network.get_weights())
+
+
+    def anneal_policy_parameter(self, t, t_final):
+        self.epsilon = self.linear_anneal(t, t_final, self.epsilon_max, self.epsilon_min)
+        self.temperature = self.linear_anneal(t, t_final, self.soft_tau_min, self.soft_tau_max)
 
     def select_action_egreedy(self, s):
         actions = self.online_DQN_network.predict(s.reshape((1, 4)))[0]
@@ -200,6 +223,18 @@ class DQNAgent:
             # this is the first time I use recursion as a safety feature, wow!
             print(f"!! a file could not be saved !!")
 
+    @staticmethod
+    def linear_anneal(t, t_end, start, final):
+        ''' Linear annealing scheduler
+        t: current timestep
+        T: total timesteps
+        start: initial value
+        final: value after percentage*T steps
+        percentage: percentage of T after which annealing finishes
+        '''
+
+        return start + (start - final) * (t_end - t) / t_end
+
 
 def run(num_epochs, max_epoch_env_steps, target_update_freq,
         policy="egreedy",
@@ -258,7 +293,8 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
             s = s_next
 
             if pi.use_tn and done:  # and epoch % target_update_freq == 0:
-                pi.update_target_network()
+                pi.update_target_network(rewards[epoch], max_epoch_env_steps)
+                pi.anneal_policy_parameter(epoch, num_epochs)
 
             if pi.use_er:
                 pi.replay()
@@ -350,8 +386,9 @@ def test_run():
 
         print(f"Epoch rewards: {rewards[epoch]:3.0f}  ({epoch:3.0f}/{num_epochs:3.0f})")
 
-        if pi.use_tn:
-            pi.update_target_network()
+        if pi.use_tn and done:  # and epoch % target_update_freq == 0:
+            pi.update_target_network(rewards[epoch], max_epoch_env_steps)
+            pi.anneal_policy_parameter(epoch, num_epochs)
 
         if epoch % save_reps == 0.:
             pi.save(rewards)
