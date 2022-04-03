@@ -57,14 +57,37 @@ def main():
 
     render = False
     plot = True
-    title = r"Softmax $\tau$=1, +TN -ER"
 
-    do_exploration = True
+    do_exploration = False
     do_layers = False
+    do_learnrates = True
+    do_gammas = True
     ###########################
     n_repetitions = 3    
     
-
+    
+    if do_learnrates:
+        Plot = LearningCurvePlot(title = "Deep Q-Learning: Various Learning Rates Compared")
+        
+        for learning_rate in [0.01,0.1,0.25,0.5]:
+            learning_curve = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
+                                use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
+            Plot.add_curve(learning_curve,label=r'$\alpha$ = {}'.format(learning_rate))
+        Plot.save('Learning_Rates.png')
+        
+        learning_rate=0.01
+    
+    if do_gammas:
+        Plot = LearningCurvePlot(title = "Deep Q-Learning: Various Discount Factors Compared")
+        
+        for gamma in [0.1,0.3,0.6,0.9]:
+            learning_curve = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
+                                use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
+            Plot.add_curve(learning_curve,label=r'$\alpha$ = {}'.format(learning_rate))
+        Plot.save('Learning_Rates.png')
+        gamma=0.9
+    
+    
     if do_exploration:
         policy = 'softmax'
         average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
