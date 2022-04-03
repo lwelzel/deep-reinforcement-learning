@@ -45,11 +45,13 @@ class DQNAgent:
         self.learning_rate = learning_rate
         self.gamma = gamma
         self.policy = policy
+        self.epsilon_initial = epsilon
         self.epsilon = epsilon
         self.epsilon_max = epsilon
         self.epsilon_min = 0.01
         self.decay = 0.999
         self.temperature = temperature
+        self.anneal = anneal
 
         if policy == "egreedy":
             self.select_action = self.select_action_egreedy
@@ -98,6 +100,7 @@ class DQNAgent:
         else:
             self.target_DQN_network = None  # self.online_DQN_network
 
+        self.buffer_type = buffer_type
         if use_er:
             if buffer_type is None:
                 self.buffer = MetaBuffer(buffer_depth, sample_batch_size)
@@ -115,7 +118,7 @@ class DQNAgent:
 
     def make_model(self):
         model = keras.Sequential()
-        model.add(keras.Input(shape=(self.state_space[0],)))
+        model.add(keras.layers.Input(shape=(self.state_space[0],)))
 
         if layers == None:
             print("WARNING: No hidden layers given for Neural Network")
@@ -139,22 +142,6 @@ class DQNAgent:
         actions = actions.astype(int).reshape((-1, 1))
 
         target = self.online_DQN_network.predict(states)
-        # target_static = np.copy(target)  # for PER
-        # target_next = self.online_DQN_network.predict(states_next)
-        #
-        # # target_next = self.online_DQN_network.predict(states_next)
-        #
-        # if self.use_tn:
-        #     target_target = self.target_DQN_network.predict(states_next)
-        #
-        #     online_target_actions = np.argmax(target_next, axis=1).reshape((-1, 1))
-        #     values = (rewards + (1 - dones) * self.gamma * np.take_along_axis(target_target,
-        #                                                                       online_target_actions,
-        #                                                                       axis=1)).reshape((-1, 1))
-        #     np.put_along_axis(target, actions, values, axis=1)
-        # else:
-        #     values = rewards + (1 - dones) * self.gamma * np.max(target_next, axis=1).reshape((-1, 1))
-        #     np.put_along_axis(target, actions, values, axis=1)
 
         if self.use_tn:  # DDQN, select one option
             # == DDQN option 1: direct prediction using TN ==
@@ -256,10 +243,11 @@ class DQNAgent:
 
         return a
 
-    def save(self, rewards):
+    def save(self, rewards, max_reward):
         rewards = rewards[np.isfinite(rewards)]
         """Saves Deep Q-Network and array of rewards"""
         Path(self.dir).mkdir(parents=True, exist_ok=True)
+
 
         try:
             self.online_DQN_network.save(self.dir / "DeepQN_model_{}.h5".format(self.agent_name))
@@ -270,16 +258,19 @@ class DQNAgent:
             meta_dict = {"alpha": self.learning_rate,
                          "gamma": self.gamma,
                          "buffer_shape": self.buffer._buffer.shape,
-                         "buffer_method": "random_sample",
-                         "buffer_sample": 128,
-                         "method": "egreedy",
-                         "method_para": 0.1,  # epsilon
-                         "other": "other_para"
+                         "buffer_method": self.buffer_type,
+                         "buffer_sample": self.buffer._sample_batch_length,
+                         "policy": self.policy,
+                         "method_para": self.epsilon_initial,
+                         "anneal": self.anneal,
+                         "max_reward": max_reward,
+                         "use_TN": str(self.use_tn),
+                         "use_ER": str(self.use_er),
                          }
 
             # Store metadata in hdf5 file
             for k in meta_dict.keys():
-                f.attrs[k] = meta_dict[k]
+                f.attrs[k] = str(meta_dict[k])
             f.close()
         except BaseException:
             # this is the first time I use recursion as a safety feature, wow!
@@ -346,41 +337,48 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
         s = env.reset()
         done = False
         rewards[epoch] = 0.
+        i=0
 
         while not done:
             a = pi.select_action(s)
             s_next, r, done, _ = env.step(a)
-            # r = r * done - 100. * (1. - done)
             rewards[epoch] += r
+
+            r_incentive = np.logical_or(not done, i == env._max_episode_steps - 1)
+            r = r_incentive * r + (1 - r_incentive) * - 0.5 * env._max_episode_steps
+            i += 1
+
             if use_er:
                 pi.buffer.update_buffer((s, a, r, s_next, done))
             s = s_next
 
             if pi.use_tn and done:  # and epoch % target_update_freq == 0:
                 pi.update_target_network(rewards[epoch], max_epoch_env_steps)
-                pi.anneal_policy_parameter(epoch, num_epochs)
+
+            pi.anneal_policy_parameter(epoch, num_epochs)
 
             if pi.use_er:
                 pi.replay()
 
         if epoch % save_reps == 0.:
-            pi.save(rewards)
+            pi.save(rewards, env._max_episode_steps)
             if (time() - start_time) > maxtime:
                 print(
                     f"Maximum time exceeded. Stopped learning. Elapsed time: {(time() - start_time) / 60.:.1f} minutes.")
                 break
 
     # save model and learning curve
+    pi.save(rewards, env._max_episode_steps)
     env.close()
-    pi.save(rewards)
+
     return
 
 
 def test_run():
-    num_epochs, max_epoch_env_steps, target_update_freq = 100, 150, 5
+    num_epochs, max_epoch_env_steps, target_update_freq = 100, 500, 5
     policy = "egreedy"
     learning_rate = 0.01
-    gamma = 0.9
+    gamma = 0.95
     epsilon = 1.
     temperature = 1.
     hidden_layers = [512, 256, 64]
@@ -425,7 +423,7 @@ def test_run():
         for timestep in tqdm(np.arange(buffer_depth + 1)):  # +1 to make sure buffer is filled
             if done:
                 s = env.reset()
-            a, expected_reward = pi.select_action(s)
+            a = pi.select_action(s)
             s_next, r, done, _ = env.step(a)
             pi.buffer.update_buffer((s, a, r, s_next, done))
 
@@ -438,11 +436,17 @@ def test_run():
         s = env.reset()
         done = False
         rewards[epoch] = 0.
+        i = 0
 
         while not done:
-            a, expected_reward = pi.select_action(s)
+            a = pi.select_action(s)
             s_next, r, done, _ = env.step(a)
             rewards[epoch] += r
+
+            r_incentive = np.logical_or(not done, i == env._max_episode_steps - 1)
+            r = r_incentive * r + (1 - r_incentive) * - 0.5 * env._max_episode_steps
+            i += 1
+
             if use_er:
                 pi.buffer.update_buffer((s, a, r, s_next, done))
             s = s_next
@@ -458,14 +462,14 @@ def test_run():
         print(f"{epoch:03.0f}/{num_epochs:03.0f} \t rewards: {rewards[epoch]:03.0f} \t epsilon: {pi.epsilon:01.04f}")
 
         if epoch % save_reps == 0.:
-            pi.save(rewards)
+            pi.save(rewards, env._max_episode_steps)
             if (time() - start_time) > maxtime:
                 print(
                     f"Maximum time exceeded. Stopped learning. Elapsed time: {(time() - start_time) / 60.:.1f} minutes.")
 
         # save model and learning curve
+        pi.save(rewards, env._max_episode_steps)
         env.close()
-        pi.save(rewards)
 
 
 if __name__ == "__main__":

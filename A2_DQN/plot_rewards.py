@@ -27,7 +27,7 @@ def read_all_rewards(dir, fig="rewards", plot_all_paths=True):
         if plot_all_paths:
             fig = plt.figure(num=fig)
             ax = np.array(fig.axes).flatten()[0]
-            smooth_rewards = smooth(l_rewards, window=21, poly=1)
+            smooth_rewards = l_rewards # smooth(l_rewards, window=21, poly=1)
             ax.plot(smooth_rewards,
                     c="gray", alpha=0.5, ls="dashed", lw=0.75)
             ax.scatter(len(smooth_rewards) - 1.,
@@ -41,7 +41,7 @@ def read_all_rewards(dir, fig="rewards", plot_all_paths=True):
 
     return rewards, label
 
-def plot_rewards_batch(rewards, label, window=51, sigma=1, fig="rewards"):
+def plot_rewards_batch(rewards, label, window=21, sigma=1, fig="rewards"):
     fig = plt.figure(num=fig)
     ax = np.array(fig.axes).flatten()[0]
 
@@ -64,8 +64,8 @@ def plot_rewards_comparison(*args):
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, label = read_all_rewards(Path("batch=2022-04-03-11-22-51_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
-    plot_rewards_batch(rewards, label, window=51)
+    rewards, label = read_all_rewards(Path("batch=2022-04-03-11-47-42_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
+    plot_rewards_batch(rewards, label, window=21)
 
     ax.set_ylim(0., None)
     ax.set_xlim(0., None)
