@@ -37,6 +37,7 @@ class DQNAgent:
                  epsilon=1., temperature=1.,
                  hidden_layers=None, hidden_act='relu', kernel_init='HeUniform', loss_func='mean_squared_error',
                  use_tn=False, use_er=False,
+                 anneal="exponential",
                  buffer_type=None, buffer_depth=2500, sample_batch_size=100,
                  name="placeholder", id=0):
 
@@ -47,16 +48,30 @@ class DQNAgent:
         self.epsilon = epsilon
         self.epsilon_max = epsilon
         self.epsilon_min = 0.01
-        self.decay = 0.99
+        self.decay = 0.999
         self.temperature = temperature
 
         if policy == "egreedy":
             self.select_action = self.select_action_egreedy
+            if anneal == "exponential":
+                self.anneal_policy_parameter = self.anneal_egreedy_exponential
+            elif anneal == "linear":
+                self.anneal_policy_parameter = self.anneal_egreedy_linear
+            else:
+                self.anneal_policy_parameter = self.anneal_null
         elif policy == "softmax":
             self.select_action = self.select_action_softmax
+            if anneal == "exponential":
+                self.anneal_policy_parameter = self.anneal_softmax_exponential
+            elif anneal == "linear":
+                self.anneal_policy_parameter = self.anneal_softmax_linear
+            else:
+                self.anneal_policy_parameter = self.anneal_null
         else:
-            print("Policy defaulted to e-greedy.")
+            print("Policy defaulted to e-greedy.\n"
+                  "Anneal defaulted to exponential.")
             self.select_action = self.select_action_egreedy
+            self.anneal_policy_parameter = self.anneal_egreedy_exponential
 
         self.hidden_layers = hidden_layers
         self.hidden_act = hidden_act
@@ -125,24 +140,49 @@ class DQNAgent:
 
         target = self.online_DQN_network.predict(states)
         # target_static = np.copy(target)  # for PER
-        target_next = self.online_DQN_network.predict(states_next)
-        target_target = self.target_DQN_network.predict(states_next) # for DDQN
+        # target_next = self.online_DQN_network.predict(states_next)
+        #
+        # # target_next = self.online_DQN_network.predict(states_next)
+        #
+        # if self.use_tn:
+        #     target_target = self.target_DQN_network.predict(states_next)
+        #
+        #     online_target_actions = np.argmax(target_next, axis=1).reshape((-1, 1))
+        #     values = (rewards + (1 - dones) * self.gamma * np.take_along_axis(target_target,
+        #                                                                       online_target_actions,
+        #                                                                       axis=1)).reshape((-1, 1))
+        #     np.put_along_axis(target, actions, values, axis=1)
+        # else:
+        #     values = rewards + (1 - dones) * self.gamma * np.max(target_next, axis=1).reshape((-1, 1))
+        #     np.put_along_axis(target, actions, values, axis=1)
 
-        online_target_actions = np.argmax(target_next, axis=1).reshape((-1, 1))
+        if self.use_tn:  # DDQN, select one option
+            # == DDQN option 1: direct prediction using TN ==
+            # very unstable, fast
 
-        # values = (rewards + (1 - dones) * self.gamma * np.amax(target_next, axis=1)).reshape((-1, 1))
-        # np.put_along_axis(target_target, online_target_actions, values, axis=1)
+            # target_next = self.target_DQN_network.predict(states_next)
+            # values = (rewards + (1 - dones) * self.gamma * np.take_along_axis(target_next,
+            #                                                                   actions,
+            #                                                                   axis=1)).reshape((-1, 1))
+            # np.put_along_axis(target, actions, values, axis=1)
 
+            # == DDQN option 2: indirect prediction using TN via online network targets ==
+            # more stable, slower
 
-        values = (rewards + (1 - dones) * self.gamma * np.take_along_axis(target_target,
-                                                                          online_target_actions,
-                                                                          axis=1)).reshape((-1, 1))
-        np.put_along_axis(target, actions, values, axis=1)
+            target_next = self.online_DQN_network.predict(states_next)
+            target_target = self.target_DQN_network.predict(states_next)
 
+            online_target_actions = np.argmax(target_next, axis=1).reshape((-1, 1))
+            values = (rewards + (1 - dones) * self.gamma * np.take_along_axis(target_target,
+                                                                              online_target_actions,
+                                                                              axis=1)).reshape((-1, 1))
+            np.put_along_axis(target, actions, values, axis=1)
 
-        # target[:, actions.astype(int).flatten()] = rewards \
-        #                                            + (1 - dones) \
-        #                                            * self.gamma * target_target[:, online_target_actions]
+        else:  # basic DQN
+            target_next = self.online_DQN_network.predict(states_next)
+            values = rewards + (1 - dones) * self.gamma * np.max(target_next, axis=1).reshape((-1, 1))
+            np.put_along_axis(target, actions, values, axis=1)
+
 
         self.online_DQN_network.fit(states, target,
                                     batch_size=self.buffer.depth, verbose=0)
@@ -164,10 +204,19 @@ class DQNAgent:
         else:
             self.target_DQN_network.set_weights(self.online_DQN_network.get_weights())
 
+    def anneal_null(self, *args):
+        pass
 
-    def anneal_policy_parameter(self, t, t_final):
-        # self.epsilon = self.linear_anneal(t, t_final, self.epsilon_max, self.epsilon_min)
-        self.epsilon = self.epsilon * self.decay
+    def anneal_egreedy_exponential(self, *args):
+        self.epsilon *= self.decay
+
+    def anneal_egreedy_linear(self, t, t_final):
+        self.epsilon = self.linear_anneal(t, t_final, self.epsilon_max, self.epsilon_min)
+
+    def anneal_softmax_exponential(self, *args):
+        self.temperature *= self.decay
+
+    def anneal_softmax_linear(self, t, t_final):
         self.temperature = self.linear_anneal(t, t_final, self.soft_tau_min, self.soft_tau_max)
 
     def select_action_egreedy(self, s):
@@ -255,6 +304,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
         epsilon=0.5, temperature=1.,
         hidden_layers=None, hidden_act='relu', kernel_init='HeUniform', loss_func='mean_squared_error',
         use_tn=False, use_er=False,
+        anneal="exponential",
         buffer_type=None, buffer_depth=2500, sample_batch_size=100,
         name="placeholder", id=0):
     maxtime = 60. * 60 * 24
@@ -269,6 +319,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
                   epsilon=epsilon, temperature=temperature,
                   hidden_layers=hidden_layers, hidden_act=hidden_act, kernel_init=kernel_init, loss_func=loss_func,
                   use_tn=use_tn, use_er=use_er,
+                  anneal=anneal,
                   buffer_type=buffer_type, buffer_depth=buffer_depth, sample_batch_size=sample_batch_size,
                   name=name, id=id)
 
@@ -338,8 +389,9 @@ def test_run():
     loss_func = 'mean_squared_error'
     use_tn = True
     use_er = True
+    anneal = "exponential"
     buffer_type = None
-    buffer_depth = 2000
+    buffer_depth = 1000
     sample_batch_size = 60
     name = f"{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
     id = 0
@@ -357,6 +409,7 @@ def test_run():
                   epsilon=epsilon, temperature=temperature,
                   hidden_layers=hidden_layers, hidden_act=hidden_act, kernel_init=kernel_init, loss_func=loss_func,
                   use_tn=use_tn, use_er=use_er,
+                  anneal=anneal,
                   buffer_type=buffer_type, buffer_depth=buffer_depth, sample_batch_size=sample_batch_size,
                   name=name, id=id)
 
@@ -394,14 +447,15 @@ def test_run():
                 pi.buffer.update_buffer((s, a, r, s_next, done))
             s = s_next
 
+            if pi.use_tn and done:  # and epoch % target_update_freq == 0:
+                pi.update_target_network(rewards[epoch], max_epoch_env_steps)
+
+            pi.anneal_policy_parameter(epoch, num_epochs)
+
             if pi.use_er:
                 pi.replay()
 
         print(f"{epoch:03.0f}/{num_epochs:03.0f} \t rewards: {rewards[epoch]:03.0f} \t epsilon: {pi.epsilon:01.04f}")
-
-        if pi.use_tn and done:  # and epoch % target_update_freq == 0:
-            pi.update_target_network(rewards[epoch], max_epoch_env_steps)
-            pi.anneal_policy_parameter(epoch, num_epochs)
 
         if epoch % save_reps == 0.:
             pi.save(rewards)

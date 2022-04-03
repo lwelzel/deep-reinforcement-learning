@@ -10,6 +10,7 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
                       hidden_layers=[512, 256, 64], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
                       use_tn=True, use_er=True,
+                      anneal="exponential",
                       buffer_type=None, buffer_depth=2500, sample_batch_size=100,
                       id=0,
                       repeats=1, load=0.9):
@@ -42,6 +43,7 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
         loss_func = np.repeat(loss_func, av_cores * repeats)
         use_tn = np.repeat(use_tn, av_cores * repeats)
         use_er = np.repeat(use_er, av_cores * repeats)
+        anneal = np.repeat(anneal, av_cores * repeats)
         buffer_type = np.repeat(buffer_type, av_cores * repeats)
         buffer_depth = np.repeat(buffer_depth, av_cores * repeats)
         sample_batch_size = np.repeat(sample_batch_size, av_cores * repeats)
@@ -67,6 +69,7 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
                           hidden_layers, hidden_act, kernel_init,
                           loss_func,
                           use_tn, use_er,
+                          anneal,
                           buffer_type, buffer_depth, sample_batch_size,
                           name, ids))
 
@@ -82,7 +85,8 @@ def main():
                       epsilon=1., temperature=1.,
                       hidden_layers=[512, 256, 64], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
-                      use_tn=True, use_er=True,
+                      use_tn=False, use_er=True,
+                      anneal="exponential",
                       buffer_type=None, buffer_depth=2000, sample_batch_size=100,
                       id=0,
                       repeats=1, load=0.9)
