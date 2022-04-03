@@ -38,7 +38,7 @@ def main():
     learning_rate=0.01
     gamma=0.8
     
-    epsilon = .1
+    epsilon = 1. #starting epsilon, annealing
     temp = 1.
     policy = 'egreedy'#'softmax'#
        
@@ -59,73 +59,32 @@ def main():
     plot = True
     title = r"Softmax $\tau$=1, +TN -ER"
 
-    do_ablation = False
     do_exploration = True
     do_layers = True
     ###########################
     n_repetitions = 5    
-
-
-    if do_ablation:
-        Plot = LearningCurvePlot(title = "Deep Q-Learning, Ablation Study")
-        
-        
-        learning_curve0 = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-                                use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-        Plot.add_curve(learning_curve0,label=r'DQN')
-        
-        use_er = True
-        use_tn = False
-        learning_curve1 = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-                                use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-        Plot.add_curve(learning_curve1,label=r'DQN without TN')
-        
-        use_er = False
-        use_tn = True
-        learning_curve2 = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-                                use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-        Plot.add_curve(learning_curve2,label=r'DQN without ER')
-        
-        use_er = False
-        use_tn = False
-        learning_curve3 = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-                                use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-        Plot.add_curve(learning_curve3,label=r'DQN without TN and ER')
-        
-        Plot.save('Ablation.png')
-        
-        # Restore previous values
-        use_er = True
-        use_tn = True
-
+    
 
     if do_exploration:
-        Plot = LearningCurvePlot(title = "Deep Q-Learning, Exploration Study")
-        eg_exp_ar = [0.01,0.1,0.25,1.]
-
-        for epsilon in eg_exp_ar:
-            lc = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-                        use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-            Plot.add_curve(lc,label=r"$\epsilon$ = "+str(epsilon))
-
         policy = 'softmax'
-        lc = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-        use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-        Plot.add_curve(lc,label=r'$\tau$ = '+str(temp))
+        average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
+                                 use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
+
+        policy = 'egreedy'
+        average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
+                                 use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
 
         Plot.save('exploration.png')
         
-        policy = 'egreedy'
-        epsilon, temp = 0.1, 1.
+        
+
 
     if do_layers:
-        Plot = LearningCurvePlot(title = "Deep Q-Learning, Hidden Layer Study")
         layers_ar = [[24,12],[48,24],[32,32]]
         for hidden_layers in layers_ar:
-            lc = average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
-            use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
-            Plot.add_curve(lc,label=hidden_layers)
-        Plot.save('archictecture.png')
+            average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
+                                     use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
+          
 
         hidden_layers = [32,32]
 
