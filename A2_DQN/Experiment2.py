@@ -13,7 +13,7 @@ def average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gam
 
     reward_results = np.empty([n_repetitions,num_iterations]) # Result array
     now = time.time()
-    max_epoch_env_steps = 250    
+    max_epoch_env_steps = 200    
 
     for rep in range(n_repetitions): # Loop over repetitions
         rewards = run_parallel_dqns(num_iterations,max_epoch_env_steps,target_update_freq,
@@ -36,17 +36,17 @@ def main():
     
     ###PARAMETERS###############
     learning_rate=0.01
-    gamma=0.8
+    gamma=0.9
     
     epsilon = 1. #starting epsilon, annealing
     temp = 1.
     policy = 'egreedy'#'softmax'#
        
-    hidden_layers = [32,32]
-    depth = 2500
+    hidden_layers = [512,256,64]
+    depth = 2000
     batch_size = 128
-    num_iterations = 500
-    target_update_freq = 25  # iterations
+    num_iterations = 250
+    target_update_freq = 4  # iterations
     learn_freq=4
     max_training_batch = int(1e6)  # storage arrays
     # training_data_shape = (max_training_batch, 1)
@@ -60,9 +60,9 @@ def main():
     title = r"Softmax $\tau$=1, +TN -ER"
 
     do_exploration = True
-    do_layers = True
+    do_layers = False
     ###########################
-    n_repetitions = 5    
+    n_repetitions = 3    
     
 
     if do_exploration:
@@ -80,13 +80,13 @@ def main():
 
 
     if do_layers:
-        layers_ar = [[24,12],[48,24],[32,32]]
+        layers_ar = [[64,32],[128,64],[256,64],[256,128,64],[512,256,64]]
         for hidden_layers in layers_ar:
             average_over_repetitions(n_repetitions,learning_rate,policy,epsilon,temp,gamma,hidden_layers,\
                                      use_er,use_tn,num_iterations,depth,learn_freq,target_update_freq)
           
 
-        hidden_layers = [32,32]
+        hidden_layers = [512,256,64]
 
 if __name__ == '__main__':
     main()
