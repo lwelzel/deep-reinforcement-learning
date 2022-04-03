@@ -189,7 +189,7 @@ class DQNAgent:
             warnings.warn("Invalid value due to annealing scheduler. Falling back on greedy policy for this step.")
             return argmax(self.arr_prob)
 
-        return a, actions[a]
+        return a
 
     def select_action_softmax(self, s):
         actions = self.target_DQN_network.predict(s.reshape((1, 4)))[0]
@@ -205,7 +205,7 @@ class DQNAgent:
             warnings.warn("Invalid value due to annealing scheduler. Falling back on greedy policy for this step.")
             return argmax(self.arr_prob)
 
-        return a, actions[a]
+        return a
 
     def save(self, rewards):
         rewards = rewards[np.isfinite(rewards)]
@@ -284,7 +284,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
         for timestep in tqdm(np.arange(buffer_depth + 1), leave=False):  # +1 to make sure buffer is filled
             if done:
                 s = env.reset()
-            a, expected_reward = pi.select_action(s)
+            a = pi.select_action(s)
             s_next, r, done, _ = env.step(a)
             pi.buffer.update_buffer((s, a, r, s_next, done))
 
@@ -297,7 +297,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
         rewards[epoch] = 0.
 
         while not done:
-            a, expected_reward = pi.select_action(s)
+            a = pi.select_action(s)
             s_next, r, done, _ = env.step(a)
             # r = r * done - 100. * (1. - done)
             rewards[epoch] += r
