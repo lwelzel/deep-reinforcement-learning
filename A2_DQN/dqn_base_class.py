@@ -330,7 +330,7 @@ def run(num_epochs, max_epoch_env_steps, target_update_freq,
             s_next, r, done, _ = env.step(a)
             pi.buffer.update_buffer((s, a, r, s_next, done))
 
-    save_reps = int(0.1 * num_epochs)
+    save_reps = 5
     start_time = time()
 
     for epoch in tqdm(np.arange(num_epochs), leave=False):
