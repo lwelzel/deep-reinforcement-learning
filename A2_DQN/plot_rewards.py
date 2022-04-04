@@ -93,7 +93,7 @@ def plot_rewards_comparison_alpha(*args):
                            constrained_layout=True,
                            figsize=(9, 6))
     rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
-    label = f"$\\alpha = 0.01$ [Default] (n={n})"
+    label = f"$\\alpha = 0.01$ (n={n})"
     plot_rewards_batch(rewards, label)
     
     rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_a=0p1"))
@@ -131,7 +131,7 @@ def plot_rewards_comparison_gamma(*args):
                            constrained_layout=True,
                            figsize=(9, 6))
     rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
-    label = f"$\\gamma = 0.9$ [Default] (n={n})"
+    label = f"$\\gamma = 0.9$ (n={n})"
     plot_rewards_batch(rewards, label)
     
     rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_g=0p6"))
@@ -226,6 +226,77 @@ def plot_rewards_noER(*args):
     return
 
 
+def plot_rewards_comparison_layers(*args):
+    fig, ax = plt.subplots(num="rewards",
+                           nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 6))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[512,256,64]"))
+    label = f"[512,256,64] (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[256,128,64]"))
+    label = f"[256,128,64] (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[256,64]"))
+    label = f"[256,64] (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[128,64]"))
+    label = f"[128,64] (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[64,32]"))
+    label = f"[64,32] (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., 249)
+    
+    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
+    ax.set_xlabel('Episode [-]')
+    ax.set_ylabel('Mean reward [-]')
+    ax.set_title(f'DQN Rewards during Training: Neural Network Architecture Comparison')
+    ax.legend()
+
+    # fig.suptitle('example sup title', fontsize=16)
+
+    #plt.show()
+    plt.savefig("layers.png")
+    plt.close()
+    return
+
+
+def plot_rewards_comparison_exploration(*args):
+    fig, ax = plt.subplots(num="rewards",
+                           nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 6))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_exp=egreedy"))
+    label = f"$\\epsilon$-greedy (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_exp=softmax"))
+    label = f"Boltzmann (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., 249)
+    
+    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
+    ax.set_xlabel('Episode [-]')
+    ax.set_ylabel('Mean reward [-]')
+    ax.set_title(f'DQN Rewards during Training: Exploration Strategy')
+    ax.legend()
+
+    # fig.suptitle('example sup title', fontsize=16)
+
+    #plt.show()
+    plt.savefig("exploration.png")
+    plt.close()
+    return
+
 
 
 def main():
@@ -233,7 +304,9 @@ def main():
     plot_rewards_comparison_alpha()
     plot_rewards_comparison_gamma()
     plot_rewards_comparison_ablation()
-    plot_rewards_noER()
+    #plot_rewards_noER()
+    plot_rewards_comparison_layers()
+    plot_rewards_comparison_exploration()
 
 if __name__ == '__main__':
     main()
