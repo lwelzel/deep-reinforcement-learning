@@ -272,10 +272,10 @@ fabric.properties
 *.h5
 *.pdf
 *.csv
+*.7z
 
 # idea
 *.idea
 *.epub
 
 # old projcts
-/A1_TRL

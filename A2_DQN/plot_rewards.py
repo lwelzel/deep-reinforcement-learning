@@ -19,17 +19,20 @@ def read_all_rewards(dir, fig="rewards", plot_all_paths=True):
     headers = []
     min_len = 5000
 
+    fig = plt.figure(num=fig)
+    ax = np.array(fig.axes).flatten()[0]
+
     for i, file in enumerate(files):
         l_rewards, header = read_h5_reward_file(file)
         headers.append(header)
         rewards[i, :len(l_rewards)] = l_rewards
         min_len = np.minimum(min_len, len(l_rewards))
         if plot_all_paths:
-            fig = plt.figure(num=fig)
-            ax = np.array(fig.axes).flatten()[0]
-            smooth_rewards = l_rewards # smooth(l_rewards, window=21, poly=1)
+            smooth_rewards = smooth(l_rewards, window=21, poly=1)
+            # smooth_rewards = smooth(l_rewards, window=1, poly=0)  # for where we want to look at single episodes
+
             ax.plot(smooth_rewards,
-                    c="gray", alpha=0.5, ls="dashed", lw=0.75)
+                    c="gray", alpha=0.25, ls="dashed", lw=0.75)
             ax.scatter(len(smooth_rewards) - 1.,
                        smooth_rewards[-1],
                        c="k",
@@ -39,9 +42,9 @@ def read_all_rewards(dir, fig="rewards", plot_all_paths=True):
 
     label = f"example_label (n={len(headers)})"
 
-    return rewards, label
+    return rewards, headers, label
 
-def plot_rewards_batch(rewards, label, window=21, sigma=1, fig="rewards"):
+def plot_rewards_batch(rewards, header, label, window=21, sigma=1, fig="rewards"):
     fig = plt.figure(num=fig)
     ax = np.array(fig.axes).flatten()[0]
 
@@ -49,23 +52,41 @@ def plot_rewards_batch(rewards, label, window=21, sigma=1, fig="rewards"):
     std_rewards = np.std(rewards, axis=0)
 
     smooth_mean = smooth(mean_rewards, window=window, poly=1)
-    smooth_std = smooth(std_rewards, window=window, poly=1)
+    smooth_std = smooth(std_rewards, window=window * 3, poly=1)
+
+    max_reward = float(header[0]["max_reward"])
+    print(header[0])
+
 
     ax.plot(smooth_mean,
             label=label)
     ax.fill_between(np.arange(len(smooth_mean)),
-                    np.clip(smooth_mean + smooth_std * sigma, a_min=0., a_max=None),
-                    np.clip(smooth_mean - smooth_std * sigma, a_min=0., a_max=None),
+                    np.clip(smooth_mean + smooth_std * sigma, a_min=0., a_max=max_reward),
+                    np.clip(smooth_mean - smooth_std * sigma, a_min=0., a_max=max_reward),
                     alpha=0.1,
                     label=f"{sigma} "r"$\sigma$ CI")
+
+    ax.axhline(max_reward, ls="dotted")
 
 def plot_rewards_comparison(*args):
     fig, ax = plt.subplots(num="rewards",
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, label = read_all_rewards(Path("batch=2022-04-03-11-47-42_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
-    plot_rewards_batch(rewards, label, window=21)
+    rewards, header, label = read_all_rewards(Path("batch=defaults_no_TN_no_ER"))
+    plot_rewards_batch(rewards, header, label, window=21)
+
+    rewards, header, label = read_all_rewards(Path("batch=defaults_no_ER"))
+    plot_rewards_batch(rewards, header, label, window=21)
+
+    rewards, header, label = read_all_rewards(Path("batch=defaults_no_TN"))
+    plot_rewards_batch(rewards, header, label, window=21)
+
+    rewards, header, label = read_all_rewards(Path("batch=defaults_soft_update"))
+    plot_rewards_batch(rewards, header, label, window=21)
+
+    rewards, header, label = read_all_rewards(Path("batch=2022-04-04-15-01-20_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
+    plot_rewards_batch(rewards, header, label, window=21)
 
     ax.set_ylim(0., None)
     ax.set_xlim(0., None)
