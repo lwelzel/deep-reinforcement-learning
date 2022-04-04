@@ -29,7 +29,7 @@ def read_all_rewards(dir, fig="rewards", plot_all_paths=False):
             ax = np.array(fig.axes).flatten()[0]
             smooth_rewards = l_rewards # smooth(l_rewards, window=21, poly=1)
             ax.plot(smooth_rewards,
-                    c="gray", alpha=0.5, ls="dashed", lw=0.75)
+                    c="gray", alpha=0.1, ls="dashed", lw=0.75)
             ax.scatter(len(smooth_rewards) - 1.,
                        smooth_rewards[-1],
                        c="k",
@@ -54,30 +54,37 @@ def plot_rewards_batch(rewards, label, window=21, sigma=1, fig="rewards"):
     ax.plot(smooth_mean,
             label=label)
     ax.fill_between(np.arange(len(smooth_mean)),
-                    np.clip(smooth_mean + smooth_std * sigma, a_min=0., a_max=None),
-                    np.clip(smooth_mean - smooth_std * sigma, a_min=0., a_max=None),
+                    np.clip(smooth_mean + smooth_std * sigma, a_min=0., a_max=200.),
+                    np.clip(smooth_mean - smooth_std * sigma, a_min=0., a_max=200.),
                     alpha=0.1)#,label=f"{sigma} "r"$\sigma$ CI")
 
-def plot_rewards_comparison(*args):
+def plot_rewards_default(*args):
     fig, ax = plt.subplots(num="rewards",
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, label = read_all_rewards(Path("batch=2022-04-03-11-47-42_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
-    plot_rewards_batch(rewards, label, window=21)
-
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
+    label = f"Defaults (n={n})"
+    plot_rewards_batch(rewards, label)
+    
     ax.set_ylim(0., None)
-    ax.set_xlim(0., None)
-
+    ax.set_xlim(0., 249)
+    
+    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
     ax.set_xlabel('Episode [-]')
     ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training')
+    ax.set_title(f'DQN Rewards during Training: Default Parameters')
     ax.legend()
 
     # fig.suptitle('example sup title', fontsize=16)
 
-    plt.show()
+    #plt.show()
+    plt.savefig("defaults.png")
+    plt.close()
     return
+
+
+
 
 
 def plot_rewards_comparison_alpha(*args):
@@ -85,24 +92,24 @@ def plot_rewards_comparison_alpha(*args):
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=2022-04-03-16-07-43_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
-    label = f"$\\alpha = 0.01$ (n={n})"
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
+    label = f"$\\alpha = 0.01$ [Default] (n={n})"
     plot_rewards_batch(rewards, label)
     
-    rewards, n = read_all_rewards(Path("BATCHES/batch=2022-04-03-23-45-18_a=1e-01_g=9e-01_hlay=(512, 256, 64)"))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_a=0p1"))
     label = f"$\\alpha = 0.1$ (n={n})"
     plot_rewards_batch(rewards, label)
     
-    rewards, n = read_all_rewards(Path("BATCHES/batch=2022-04-04-09-06-35_a=2e-01_g=9e-01_hlay=(512, 256, 64)"))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_a=0p25"))
     label = f"$\\alpha = 0.25$ (n={n})"
     plot_rewards_batch(rewards, label)
     
-    rewards, n = read_all_rewards(Path("batch=2022-04-04-12-04-15_a=5e-01_g=9e-01_hlay=(512, 256, 64)"), plot_all_paths=True)
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_a=0p5"))
     label = f"$\\alpha = 0.5$ (n={n})"
     plot_rewards_batch(rewards, label)
     
     ax.set_ylim(0., None)
-    ax.set_xlim(0., 250)
+    ax.set_xlim(0., 249)
     
     ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
     ax.set_xlabel('Episode [-]')
@@ -123,24 +130,24 @@ def plot_rewards_comparison_gamma(*args):
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=2022-04-04-09-09-18_a=1e-02_g=1e-01_hlay=(512, 256, 64)"))
-    label = f"$\\gamma = 0.1$ (n={n})"
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
+    label = f"$\\gamma = 0.9$ [Default] (n={n})"
     plot_rewards_batch(rewards, label)
     
-    rewards, n = read_all_rewards(Path("BATCHES/batch=2022-04-04-09-55-11_a=1e-02_g=3e-01_hlay=(512, 256, 64)"))
-    label = f"$\\gamma = 0.3$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=2022-04-04-11-13-44_a=1e-02_g=6e-01_hlay=(512, 256, 64)"))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_g=0p6"))
     label = f"$\\gamma = 0.6$ (n={n})"
     plot_rewards_batch(rewards, label)
     
-    rewards, n = read_all_rewards(Path("BATCHES/batch=2022-04-03-16-07-43_a=1e-02_g=9e-01_hlay=(512, 256, 64)"))
-    label = f"$\\gamma = 0.9$ (n={n})"
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_g=0p3"))
+    label = f"$\\gamma = 0.3$ (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_g=0p1"))
+    label = f"$\\gamma = 0.1$ (n={n})"
     plot_rewards_batch(rewards, label)
     
     ax.set_ylim(0., None)
-    ax.set_xlim(0., 250)
+    ax.set_xlim(0., 249)
     
     ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
     ax.set_xlabel('Episode [-]')
@@ -155,10 +162,78 @@ def plot_rewards_comparison_gamma(*args):
     plt.close()
     return
 
+
+def plot_rewards_comparison_ablation(*args):
+    fig, ax = plt.subplots(num="rewards",
+                           nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 6))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
+    label = f"Default (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_ER"))
+    label = f"No ER (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_TN"))
+    label = f"No TN (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_TN_no_ER"))
+    label = f"No TN, No ER (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., 349)
+    
+    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
+    ax.set_xlabel('Episode [-]')
+    ax.set_ylabel('Mean reward [-]')
+    ax.set_title(f'DQN Rewards during Training: Ablation Study')
+    ax.legend()
+
+    # fig.suptitle('example sup title', fontsize=16)
+
+    #plt.show()
+    plt.savefig("ablation.png")
+    plt.close()
+    return
+
+def plot_rewards_noER(*args):
+    fig, ax = plt.subplots(num="rewards",
+                           nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 6))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_ER"), plot_all_paths=True)
+    label = f"No ER (n={n})"
+    plot_rewards_batch(rewards, label)
+        
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., 349)
+    
+    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
+    ax.set_xlabel('Episode [-]')
+    ax.set_ylabel('Mean reward [-]')
+    ax.set_title(f'DQN Rewards during Training: Ablation Study')
+    ax.legend()
+
+    # fig.suptitle('example sup title', fontsize=16)
+
+    #plt.show()
+    plt.savefig("noER.png")
+    plt.close()
+    return
+
+
+
+
 def main():
+    plot_rewards_default()
     plot_rewards_comparison_alpha()
     plot_rewards_comparison_gamma()
-
+    plot_rewards_comparison_ablation()
+    plot_rewards_noER()
 
 if __name__ == '__main__':
     main()
