@@ -277,6 +277,10 @@ def plot_rewards_comparison_exploration(*args):
     label = f"$\\epsilon$-greedy (n={n})"
     plot_rewards_batch(rewards, label)
     
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_linear_anneal"))
+    label = f"$\\epsilon$-greedy, Linear Annealing (n={n})"
+    plot_rewards_batch(rewards, label)
+    
     rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_exp=softmax"))
     label = f"Boltzmann (n={n})"
     plot_rewards_batch(rewards, label)
@@ -298,15 +302,121 @@ def plot_rewards_comparison_exploration(*args):
     return
 
 
+def plot_rewards_comparison_smartsoft(*args):
+    fig, ax = plt.subplots(num="rewards",
+                           nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 6))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=default1"))
+    label = f"Default (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_soft_update"))
+    label = f"Soft Update (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_smart_update"))
+    label = f"Smart Update (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., 249)
+    
+    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
+    ax.set_xlabel('Episode [-]')
+    ax.set_ylabel('Mean reward [-]')
+    ax.set_title(f'DQN Rewards during Training: Smart vs Soft Update')
+    ax.legend()
+
+    # fig.suptitle('example sup title', fontsize=16)
+
+    #plt.show()
+    plt.savefig("smartsoft.png")
+    plt.close()
+    return
+
+def plot_rewards_comparison_maxrewards(*args):
+    fig, ax = plt.subplots(num="rewards",
+                           nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 6))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=default1"))
+    label = f"Default (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_high_max_reward"))
+    label = f"High Max Reward (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_medium_max_reward"))
+    label = f"Medium Max Reward (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., 274)
+    
+    #ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
+    ax.set_xlabel('Episode [-]')
+    ax.set_ylabel('Mean reward [-]')
+    ax.set_title(f'DQN Rewards during Training: Max Reward Comparison')
+    ax.legend()
+
+    # fig.suptitle('example sup title', fontsize=16)
+
+    #plt.show()
+    plt.savefig("maxrewards.png")
+    plt.close()
+    return
+
+
+def plot_rewards_comparison_bufferbatch(*args):
+    fig, ax = plt.subplots(num="rewards",
+                           nrows=1, ncols=1,
+                           constrained_layout=True,
+                           figsize=(9, 6))
+    rewards, n = read_all_rewards(Path("BATCHES/batch=default1"))
+    label = f"Default (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_large_buffer_and_batch"))
+    label = f"Large Buffer & Batch (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_large_buffer_capacity"))
+    label = f"Large Buffer (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_tiny_buffer_capacity_and_batch"))
+    label = f"Tiny Buffer & Batch (n={n})"
+    plot_rewards_batch(rewards, label)
+    
+    ax.set_ylim(0., None)
+    ax.set_xlim(0., 249)
+    
+    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
+    ax.set_xlabel('Episode [-]')
+    ax.set_ylabel('Mean reward [-]')
+    ax.set_title(f'DQN Rewards during Training: Buffer/Batch Size Comparison')
+    ax.legend()
+
+    # fig.suptitle('example sup title', fontsize=16)
+
+    #plt.show()
+    plt.savefig("bufferbatch.png")
+    plt.close()
+    return
 
 def main():
     plot_rewards_default()
     plot_rewards_comparison_alpha()
     plot_rewards_comparison_gamma()
     plot_rewards_comparison_ablation()
-    #plot_rewards_noER()
+    plot_rewards_noER()
     plot_rewards_comparison_layers()
     plot_rewards_comparison_exploration()
+    plot_rewards_comparison_smartsoft()
+    plot_rewards_comparison_maxrewards()
+    plot_rewards_comparison_bufferbatch()
 
 if __name__ == '__main__':
     main()
