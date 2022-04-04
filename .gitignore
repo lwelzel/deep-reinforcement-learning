@@ -273,6 +273,7 @@ fabric.properties
 *.pdf
 *.csv
 *.7z
+*.zip
 
 # idea
 *.idea
