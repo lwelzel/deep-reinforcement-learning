@@ -28,7 +28,7 @@ class MetaBuffer(object):
         try:
             assert sample_batch_length < _max_batch_fill * depth, f"Batch length must be smaller than buffer depth."
         except AssertionError:
-            sample_batch_length = int(_max_batch_fill * depth)
+            sample_batch_length = np.clip(int(_max_batch_fill * depth), a_min=1, a_max=None)
             print(f"Downsizing batch length to {sample_batch_length} (10% of depth)")
         self._sample_batch_length = sample_batch_length  # TODO: random value right now, decide on reasonable
 

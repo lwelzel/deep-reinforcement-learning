@@ -3,15 +3,16 @@ from dqn_base_class import run
 import pathos.multiprocessing as mp
 from time import strftime, gmtime
 
-def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=5,
+def run_parallel_dqns(num_epochs=350, max_epoch_env_steps=200, target_update_freq=4,
                       policy="egreedy",
-                      learning_rate=0.01, gamma=0.8,
-                      epsilon=0.5, temperature=1.,
+                      learning_rate=0.01, gamma=0.9,
+                      epsilon=1., temperature=1.,
                       hidden_layers=[512, 256, 64], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
                       use_tn=True, use_er=True,
                       anneal="exponential",
-                      buffer_type=None, buffer_depth=2500, sample_batch_size=100,
+                      smart_update=False, soft_update=False,
+                      buffer_type=None, buffer_depth=2000, sample_batch_size=100,
                       id=0,
                       repeats=1, load=0.9):
     """
@@ -44,6 +45,8 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
         use_tn = np.repeat(use_tn, av_cores * repeats)
         use_er = np.repeat(use_er, av_cores * repeats)
         anneal = np.repeat(anneal, av_cores * repeats)
+        smart_update = np.repeat(smart_update, av_cores * repeats)
+        soft_update = np.repeat(soft_update, av_cores * repeats)
         buffer_type = np.repeat(buffer_type, av_cores * repeats)
         buffer_depth = np.repeat(buffer_depth, av_cores * repeats)
         sample_batch_size = np.repeat(sample_batch_size, av_cores * repeats)
@@ -70,6 +73,7 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
                           loss_func,
                           use_tn, use_er,
                           anneal,
+                          smart_update, soft_update,
                           buffer_type, buffer_depth, sample_batch_size,
                           name, ids))
 
@@ -79,14 +83,15 @@ def run_parallel_dqns(num_epochs=50, max_epoch_env_steps=50, target_update_freq=
 
 
 def main():
-    run_parallel_dqns(num_epochs=250, max_epoch_env_steps=200, target_update_freq=4,
+    run_parallel_dqns(num_epochs=500, max_epoch_env_steps=200, target_update_freq=4,
                       policy="egreedy",
                       learning_rate=0.01, gamma=0.9,
                       epsilon=1., temperature=1.,
                       hidden_layers=[512, 256, 64], hidden_act='relu', kernel_init='HeUniform',
                       loss_func='mean_squared_error',
-                      use_tn=False, use_er=True,
+                      use_tn=True, use_er=True,
                       anneal="exponential",
+                      smart_update=False, soft_update=False,
                       buffer_type=None, buffer_depth=2000, sample_batch_size=100,
                       id=0,
                       repeats=1, load=0.9)
