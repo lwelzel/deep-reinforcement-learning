@@ -1,5 +1,11 @@
 # Overview
-DQN
+requirements.txt contains list of required packages.
+
+Run plot_rewards.py for plots shown in report (requires saved rewards from BATCHES folder)
+
+If you wish to run the experiments yourself, Experiment.py runs the agent/environment and saves rewards and DQN weights. Change the parameters in main() depending on which settings you wish to run.
+
+
 
 # Read Me:
 ## Use:
