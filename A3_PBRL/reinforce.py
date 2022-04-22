@@ -8,8 +8,9 @@
 
 import numpy as np
 import gym
+from base_agent import BaseAgent
 
-class Reinforce_Agent(BaseAgent):
+class ReinforceAgent(BaseAgent):
     def __init__(self, **kwargs):
         super().__init__()
         

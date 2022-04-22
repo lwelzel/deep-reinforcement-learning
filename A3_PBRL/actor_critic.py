@@ -6,9 +6,15 @@
 #
 #######################
 
+from base_agent import BaseAgent
 
-
-
+class ActorCriticClass(BaseClass):
+    def __init__(self, **kwargs):
+        super().__init__()
+        
+        
+    def update():
+        pass;
 
 
 
