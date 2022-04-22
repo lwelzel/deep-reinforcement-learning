@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #######################
 #
-#  Actor Critic Class
+#  Training functions taking policy search class as input
 #
 #######################
 

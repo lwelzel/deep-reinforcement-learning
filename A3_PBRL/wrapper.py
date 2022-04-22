@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #######################
 #
-#  Actor Critic Class
+#  Wrapper function for parallel running
 #
 #######################
 
