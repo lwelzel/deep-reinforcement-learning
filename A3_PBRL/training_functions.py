@@ -40,8 +40,11 @@ def train(method):
         pi = ActorCriticAgent(env.observation_space,env.action_space)
 
     #learning process (NOT COMPLETED)
-    trace_array, episode_len = sample_traces(env, pi, 5)
-    pi.update(trace_array, episode_len)
+    converged = False
+    while not converged:
+        trace_array, episode_len = sample_traces(env, pi, 5)
+        weight_grad = pi.update(trace_array, episode_len)
+        converged = pi.update_weights(weight_grad)
     
 
 
