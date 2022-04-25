@@ -8,8 +8,6 @@
 
 import warnings
 import h5py
-import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras import layers, Input, Sequential
 import numpy as np
 from helper import softmax, argmax
@@ -167,9 +165,9 @@ class BaseAgent:
 
             ### save simulation data to h5 file
             meta_dict = {"alpha": self.learning_rate,
-                         "gamma": self.gamma,
-                         "policy": self.policy,
-                         "anneal": self.anneal,
+                         "gamma": self.discount,
+                         "policy": self.exp_policy,
+                         "anneal": self.anneal_method,
                          "max_reward": self.max_reward,
                          }
 
