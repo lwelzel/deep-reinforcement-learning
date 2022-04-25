@@ -8,18 +8,18 @@
 
 from base_agent import BaseAgent
 
-class ActorCriticClass(BaseClass):
+class ActorCriticAgent(BaseAgent):
     def __init__(self, **kwargs):
-        super().__init__()
+        def __init__(self, state_space, action_space, **kwargs):
+            super().__init__(state_space, action_space, **kwargs)
         
-        
-    def update():
-        pass;
+    def update(self, trace_array, episode_len):
+        print(f"Average Reward: {np.mean(episode_len)}")
 
 
 
-def main():
-    pass;
+def custom_train_actor_critic():
+    pass
 
 
 if __name__ == '__main__':

@@ -11,16 +11,14 @@ import gym
 from base_agent import BaseAgent
 
 class ReinforceAgent(BaseAgent):
-    def __init__(self, **kwargs):
-        super().__init__()
+    def __init__(self, state_space, action_space, **kwargs):
+        super().__init__(state_space, action_space, **kwargs)
         
-        
-    def update():
-        pass;
+    def update(self, trace_array, episode_len):
+        print(f"Average Reward: {np.mean(episode_len)}")
 
    
-def get_traces(env, pi, num_traces):
-    pass;
+
 
 
 def custom_train_reinforce():
@@ -31,7 +29,7 @@ def custom_train_reinforce():
     ######################
 
     env = gym.make('CartPole-v1')
-    pi  = Reinforce_Agent()
+    pi  = ReinforceAgent(env.observation_space, env.action_space)
     
     
 
