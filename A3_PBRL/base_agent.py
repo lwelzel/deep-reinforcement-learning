@@ -25,7 +25,7 @@ class BaseAgent:
                  anneal_method='exponential',
                  decay=0.999, epsilon_min=0.01, temp_min=0.1,
                  learning_rate=0.01, discount=0.8,
-                 hidden_layers=[64, 64], hidden_act='relu', kernel_init=None,
+                 hidden_layers=[256, 256], hidden_act='relu', kernel_init=None,
                  name="", id=0):
 
         self.state_space = state_space.shape
@@ -77,7 +77,7 @@ class BaseAgent:
 
         self.agent_name = f"run{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
         self.dir = Path(f"{name}_a={learning_rate}_g={discount}_{exp_policy}_{anneal_method}_id={id}")
-        print(self.dir)
+        print(f"Saving into directory: {self.dir}")
 
     def select_action_egreedy(self, s):
         actions = self.network.predict(s.reshape((1, 4)))[0]
@@ -149,7 +149,7 @@ class BaseAgent:
 
     def update_weights(self, weight_grad):
         # Not sure if weights and weight_grad are in same shapes. CHECK
-        weights = self.network.get_weights
+        weights = self.network.get_weights()
         new_weights = weights + self.learning_rate * weight_grad
         self.network.set_weights(new_weights)
 

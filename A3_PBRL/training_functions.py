@@ -8,6 +8,7 @@
 
 import numpy as np
 import gym
+import time
 from reinforce import ReinforceAgent
 from actor_critic import ActorCriticAgent
 
@@ -15,7 +16,7 @@ from actor_critic import ActorCriticAgent
 def sample_traces(env, pi, n_traces, verbose=False):
     # create array that could potentially contain all complete traces
     trace_array = np.zeros((n_traces, 4 * pi.max_reward, 4))
-    episode_len = np.zeros(n_traces)  # track how many entries for each trace
+    episode_len = np.zeros(n_traces, dtype=int)  # track how many entries for each trace
 
     # simulate iteratively
     for i in range(n_traces):
@@ -31,6 +32,7 @@ def sample_traces(env, pi, n_traces, verbose=False):
                 transition[j, :] = obs
             trace_array[i, 4 * t:4 * (t + 1), :] = transition
 
+            s = s_next
             t += 1
             if verbose: env.render()
             if t == pi.max_reward: done = True
@@ -51,20 +53,30 @@ def train(method, train_length=100, n_traces=5, verbose=False,
         pi = ActorCriticAgent(env.observation_space, env.action_space, **kwargs)
 
     average_trace_reward = np.zeros(train_length)
-    for i in range(train_length):
+    for epoch in range(train_length):
+        t0 = time.time()
         trace_array, episode_len = sample_traces(env, pi, n_traces, verbose)
-        pi.update_policy(trace_array, episode_len)
-        average_trace_reward[i] = np.mean(episode_len)
+        pi.update_policy(trace_array, episode_len, train_length)
+        average_trace_reward[epoch] = np.mean(episode_len)
 
-        if (i % save_freq) == 0 and save_rewards:
-            pi.save(average_trace_reward[:i])
+        if (epoch % save_freq) == 0 and save_rewards:
+            pi.save(average_trace_reward[:epoch])
 
+        if verbose:
+            if pi.exp_policy == 'egreedy':
+                exp_factor = pi.epsilon
+            if pi.exp_policy == 'softmax':
+                exp_factor = pi.temp
+            print(
+                f"Completed Iteration {epoch} | Elapsed Time: {time.time() - t0:.2f}s | Mean Reward: {average_trace_reward[epoch]} | Exploration Factor: {exp_factor:.2f} ({pi.exp_policy})")
+
+        pi.anneal_policy_parameter(epoch, train_length)
     if save_rewards:
         pi.save(average_trace_reward)
 
 
 def main():
-    train('reinforce', train_length=100, verbose=True)
+    train('reinforce', train_length=100, n_traces=10, verbose=True, save_rewards=True, save_freq=100, decay=0.99)
 
 
 if __name__ == '__main__':
