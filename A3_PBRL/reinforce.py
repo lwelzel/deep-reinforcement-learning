@@ -16,8 +16,8 @@ class ReinforceAgent(BaseAgent):
     def __init__(self, state_space, action_space, **kwargs):
         super().__init__(state_space, action_space, name='reinforce', **kwargs)
 
-    def update_policy(self, trace_array, episode_len, train_length):
-        """"Reinforce weights update function as described by Algorithm """
+    def update_policy(self, trace_array, episode_len):
+        """"Reinforce weights update function as described by Algorithm ??"""
         weight_grad = np.zeros_like(self.network.get_weights(), dtype=object)
 
         num_traces = trace_array.shape[0]
@@ -30,22 +30,23 @@ class ReinforceAgent(BaseAgent):
                 a, r = int(trace[(4 * t) + 1][0]), int(trace[(4 * t) + 2][0])
 
                 cumu_trace_reward = r + self.discount * cumu_trace_reward
-                weight_grad += self.one_step_weight_grad(s, a, cumu_trace_reward, train_length)
+                weight_grad += self.one_step_weight_grad(s, a, cumu_trace_reward, num_traces)
 
 
         self.update_weights(weight_grad)
 
-    def one_step_weight_grad(self, s, a, cumu_trace_reward, train_length):
+    def one_step_weight_grad(self, s, a, cumu_trace_reward, num_traces):
         """Computes the one step gradient update"""
         x = tf.constant(s, shape=(1, 4))
         with tf.GradientTape() as tape:
             val_sa = self.network(x)[0][a]
             log_val_sa = tf.math.log(val_sa)
         grad_log = tape.gradient(log_val_sa, self.network.trainable_variables)
-        grad_log = [(cumu_trace_reward/train_length) * item.numpy() for item in grad_log]
+        grad_log = [(cumu_trace_reward/num_traces) * item.numpy() for item in grad_log]
 
         return grad_log
 
+    #def update_with_loss(self, trace_array, episode_len):
 
     # def loss_function(self, trace_array, episode_len):
     #    """Full loss function to push through automatic differentiation"""

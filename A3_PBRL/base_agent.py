@@ -25,7 +25,7 @@ class BaseAgent:
                  anneal_method='exponential',
                  decay=0.999, epsilon_min=0.01, temp_min=0.1,
                  learning_rate=0.01, discount=0.8,
-                 hidden_layers=[256, 256], hidden_act='relu', kernel_init=None,
+                 hidden_layers=[256, 256], hidden_act='relu', kernel_init='he_uniform',
                  name="", id=0):
 
         self.state_space = state_space.shape
@@ -81,10 +81,10 @@ class BaseAgent:
 
     def select_action_egreedy(self, s):
         actions = self.network.predict(s.reshape((1, 4)))[0]
-
         try:
             self.arr_prob[:] = self.epsilon / self.n_actions
-            self.arr_prob[argmax(actions)] += (1 - self.epsilon)
+            self.arr_prob[argmax(actions)] = 1 - self.epsilon * ((self.n_actions - 1.)
+                                                                 / self.n_actions)
         except KeyError:
             raise KeyError("No epsilon given in select_action().")
 
