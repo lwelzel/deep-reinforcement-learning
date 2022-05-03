@@ -17,9 +17,9 @@ class ActorCriticModel(Model):
     """
 
     def __init__(self, action_space_size, state_space_size,
-                 hidden_layers_actor=(258, 64), hidden_act_actor='relu', kernel_init_actor='he_uniform',
-                 hidden_layers_critic=(258, 64), hidden_act_critic='relu', kernel_init_critic='he_uniform',
-                 policy="softmax"):
+                 hidden_layers_actor=(32, 16), hidden_act_actor='relu', kernel_init_actor='glorot_uniform',
+                 hidden_layers_critic=(32, 16), hidden_act_critic='relu', kernel_init_critic='glorot_uniform',
+                 actor_output_activation=None, critic_output_activation=None, **kwargs):
         """
         We use 'softmax' as the activation function for the actor output layer
         so that it can receive non-normalized (+/- inf) input from prior layers
@@ -28,29 +28,37 @@ class ActorCriticModel(Model):
         self.action_space_size = action_space_size
         self.state_space_size = state_space_size
 
-        input = Input(shape=(self.state_space_size,), name='input')
+
+        input = Input(shape=self.state_space_size,
+                      name='common_input')
 
         # actor network branch
         self._actor = Dense(units=hidden_layers_actor[0],
                             activation=hidden_act_actor,
-                            kernel_initializer=kernel_init_actor)(input)
+                            kernel_initializer=kernel_init_actor,
+                            name="actor_branch_input")(input)
 
         for i, neurons in enumerate(hidden_layers_actor[1:]):
             self._actor = Dense(units=neurons,
                                 activation=hidden_act_actor,
-                                kernel_initializer=kernel_init_actor)(self._actor)
-        self._actor = Dense(units=self.action_space_size, activation=policy)(self._actor)
+                                kernel_initializer=kernel_init_actor,
+                                name=f"actor_layer_{i+1}")(self._actor)
+        self._actor = Dense(units=self.action_space_size, activation=actor_output_activation,
+                            name='action')(self._actor)
 
         # critic network branch
         self._critic = Dense(units=hidden_layers_critic[0],
                              activation=hidden_act_critic,
-                             kernel_initializer=kernel_init_critic)(input)
+                             kernel_initializer=kernel_init_critic,
+                             name="critic_branch_input")(input)
 
         for i, neurons in enumerate(hidden_layers_critic[1:]):
             self._critic = Dense(units=neurons,
                                  activation=hidden_act_critic,
-                                 kernel_initializer=kernel_init_critic)(self._critic)
-        self._critic = Dense(units=self.action_space_size, )(self._critic)
+                                 kernel_initializer=kernel_init_critic,
+                                 name=f"critic_layer_{i+1}")(self._critic)
+        self._critic = Dense(units=1,
+                             name='value', activation=critic_output_activation)(self._critic)
 
         # build model (parent class)
         super(ActorCriticModel, self).__init__(inputs=input, outputs=[self._actor, self._critic])
@@ -62,7 +70,7 @@ class LegacyActorCriticAgentModel(Model):
     def __init__(self, action_space_size, state_space_size,
                  hidden_layers_actor=(258, 64), hidden_act_actor='relu', kernel_init_actor='he_uniform',
                  hidden_layers_critic=(258, 64), hidden_act_critic='relu', kernel_init_critic='he_uniform',
-                 policy="relu"):
+                 actor_prop_rescale_policy="relu"):
         """
 
         """
@@ -108,3 +116,17 @@ class LegacyActorCriticAgentModel(Model):
             action_probability = layer(action_probability)
 
         return action_probability, value
+
+
+
+
+if __name__ == '__main__':
+    from tensorflow.keras.utils import plot_model
+    a2c_model = ActorCriticModel(action_space_size=2, state_space_size=4,
+                                 hidden_layers_actor=(258, 64),
+                                 hidden_layers_critic=(258, 64))
+    s = [0.3, 1.5, -3., 4.2]
+    prob, val = a2c_model(np.reshape(s, (1, 4)))
+    print(prob, val)
+    a2c_model.summary()
+    plot_model(a2c_model, "example_a2c_graph.png", show_shapes=True)
