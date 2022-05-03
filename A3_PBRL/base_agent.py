@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 #######################
 #
 #  Parent class for all training agents 
@@ -8,6 +9,7 @@
 
 import warnings
 import h5py
+import tensorflow as tf
 from tensorflow.keras import layers, Input, Sequential
 import numpy as np
 from helper import softmax, argmax
@@ -25,7 +27,8 @@ class BaseAgent:
                  anneal_method='exponential',
                  decay=0.999, epsilon_min=0.01, temp_min=0.1,
                  learning_rate=0.01, discount=0.8,
-                 hidden_layers=[256, 256], hidden_act='relu', kernel_init='he_uniform',
+                 hidden_layers=[256, 256], hidden_act='relu', 
+                 kernel_init='he_uniform', optimizer='adam',
                  name="", id=0):
 
         self.state_space = state_space.shape
@@ -73,7 +76,7 @@ class BaseAgent:
         self.learning_rate = learning_rate
         self.discount = discount
 
-        self.network = self._create_neural_net(hidden_layers, hidden_act, kernel_init)
+        self.network = self._create_neural_net(hidden_layers, hidden_act, kernel_init, optimizer)
 
         self.agent_name = f"run{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
         self.dir = Path(f"{name}_a={learning_rate}_g={discount}_{exp_policy}_{anneal_method}_id={id}")
@@ -93,14 +96,16 @@ class BaseAgent:
         except ValueError:
             # some of the annealers are a *little* unstable sometimes, fall back on greedy
             warnings.warn("Invalid value due to annealing scheduler. Falling back on greedy policy for this step.")
-            return argmax(self.arr_prob)
+            return argmax(self.arr_prob), self.arr_prob
 
-        return a
+        return a, self.arr_prob
 
     def select_action_softmax(self, s):
         actions = self.network.predict(s.reshape((1, 4)))[0]
+        print(type(actions))
         try:
             self.arr_prob[:] = softmax(actions, self.temp)
+            print(self.arr_prob)
         except KeyError:
             raise KeyError("No temperature supplied in select_action().")
 
@@ -109,9 +114,9 @@ class BaseAgent:
         except ValueError:
             # some of the annealers are a *little* unstable sometimes, fall back on greedy
             warnings.warn("Invalid value due to annealing scheduler. Falling back on greedy policy for this step.")
-            return argmax(self.arr_prob)
+            return argmax(self.arr_prob), self.arr_prob
 
-        return a
+        return a, self.arr_prob
 
     def anneal_null(self, *args):
         pass
@@ -126,15 +131,15 @@ class BaseAgent:
         self.temp *= self.decay
 
     def anneal_softmax_linear(self, t, t_final):
-        self.temp = self.linear_anneal(t, t_final, self.temp_min, self.temp_max)
-
-    def _create_neural_net(self, hidden_layers, hidden_act, kernel_init):
+        self.temp = self.linear_anneal(t, t_final, self.temp_min, self.temp_max)                          
+    
+    def _create_neural_net(self, hidden_layers, hidden_act, kernel_init, optimizer):
         """Neural Network Policy"""
 
         model = Sequential()
         model.add(Input(shape=self.state_space))
 
-        if layers is None:
+        if hidden_layers is None:
             print("WARNING: No hidden layers given for Neural Network")
             input("Continue? ... ")
         else:
@@ -143,14 +148,18 @@ class BaseAgent:
 
         model.add(layers.Dense(self.n_actions, kernel_initializer=kernel_init))
         model.summary()
-        model.compile()
+        model.compile(optimizer=optimizer)
 
         return model
 
-    def update_weights(self, weight_grad):
-        # Not sure if weights and weight_grad are in same shapes. CHECK
+    def update_weights(self, weights_grad):
+        """Weights Update using Learning Rate"""
         weights = self.network.get_weights()
-        new_weights = weights + self.learning_rate * weight_grad
+        new_weights = np.array([weight * (1. - self.learning_rate) + weight_grad * self.learning_rate
+                            for weight, weight_grad
+                            in zip(weights, weights_grad)],
+                           dtype=object)
+        
         self.network.set_weights(new_weights)
 
     def save(self, rewards):

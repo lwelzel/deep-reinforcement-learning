@@ -24,7 +24,7 @@ def sample_traces(env, pi, n_traces, verbose=False):
         done = False
         t = 0
         while not done:
-            a = pi.select_action(s)
+            a, _ = pi.select_action(s)
             s_next, r, done, _ = env.step(a)
             if t == pi.max_reward:
                 done = True
@@ -54,11 +54,16 @@ def train(method, train_length=100, n_traces=5, verbose=False,
     elif method == 'actor-critic':
         pi = ActorCriticAgent(env.observation_space, env.action_space, **kwargs)
 
+
     average_trace_reward = np.zeros(train_length)
     for epoch in range(train_length):
         t_start = time.time()
         trace_array, episode_len = sample_traces(env, pi, n_traces, verbose)
-        pi.update_policy(trace_array, episode_len)
+
+        if verbose:
+            print("Updating Weights...", end="\r")
+        #loss = pi.update_with_loss(trace_array, episode_len)
+        loss = pi.update_policy(trace_array, episode_len)
         average_trace_reward[epoch] = np.mean(episode_len)
 
         if (epoch % save_freq) == 0 and save_rewards:
@@ -69,8 +74,7 @@ def train(method, train_length=100, n_traces=5, verbose=False,
                 exp_factor = pi.epsilon
             elif pi.exp_policy == 'softmax':
                 exp_factor = pi.temp
-            print(
-                f"Completed Iteration {epoch} | Elapsed Time: {time.time() - t_start:.2f}s | Mean Reward: {average_trace_reward[epoch]} | Exploration Factor: {exp_factor:.2f} ({pi.exp_policy})")
+            print(f"Completed Iteration {epoch} | Elapsed Time: {time.time() - t_start:.2f}s | Mean Reward: {average_trace_reward[epoch]:.1f} | Exploration Factor: {exp_factor:.2f} ({pi.exp_policy}) | Loss: {loss:.3f}")
 
         pi.anneal_policy_parameter(epoch, train_length)
     if save_rewards:
@@ -78,7 +82,7 @@ def train(method, train_length=100, n_traces=5, verbose=False,
 
 
 def main():
-    train('reinforce', train_length=100, n_traces=10, verbose=True, save_rewards=True, save_freq=100, decay=0.99)
+    train('reinforce', train_length=100, n_traces=10, verbose=True, save_rewards=True, save_freq=100)
 
 
 if __name__ == '__main__':
