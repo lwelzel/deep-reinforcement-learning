@@ -86,7 +86,7 @@ class ReinforceAgent(BaseAgent):
             loss = -loss/num_traces
                 
         loss_grad = tape.gradient(loss, self.network.trainable_variables)
-        self.update_weights(loss_grad)
+        self.grad_descent(loss_grad)
         
         return loss
         

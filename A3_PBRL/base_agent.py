@@ -162,6 +162,16 @@ class BaseAgent:
         
         self.network.set_weights(new_weights)
 
+    def grad_descent(self, weights_grad):
+        """Weights Update using Learning Rate"""
+        weights = self.network.get_weights()
+        new_weights = np.array([weight - (weight_grad * self.learning_rate)
+                            for weight, weight_grad
+                            in zip(weights, weights_grad)],
+                           dtype=object)
+        
+        self.network.set_weights(new_weights)
+
     def save(self, rewards):
         """Saves rewards list to directory"""
         rewards = rewards[np.isfinite(rewards)]
