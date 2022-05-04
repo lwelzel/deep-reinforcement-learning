@@ -11,9 +11,10 @@ import gym
 import time
 from reinforce import ReinforceAgent
 from actor_critic import ActorCriticAgent
+from evolutionary import EvolutionaryAgent
 
 
-def sample_traces(env, pi, n_traces, verbose=False):
+def sample_traces(env, pi, n_traces, render=False):
     # create array that could potentially contain all complete traces
     trace_array = np.zeros((n_traces, 4 * pi.max_reward, 4))
     episode_len = np.zeros(n_traces, dtype=int)  # track how many entries for each trace
@@ -36,7 +37,7 @@ def sample_traces(env, pi, n_traces, verbose=False):
 
             s = s_next
             t += 1
-            if verbose:
+            if render:
                 env.render()
 
         episode_len[i] = t
@@ -44,8 +45,8 @@ def sample_traces(env, pi, n_traces, verbose=False):
     return trace_array, episode_len
 
 
-def train(method, train_length=100, n_traces=5, verbose=False,
-          save_rewards=False, save_freq=10, **kwargs):
+def train(method, train_length=100, n_traces=5, verbose=False, render=False,
+          save_rewards=False, save_freq=10, num_agents=25, **kwargs):
     """General Training function"""
 
     env = gym.make('CartPole-v1')
@@ -53,18 +54,28 @@ def train(method, train_length=100, n_traces=5, verbose=False,
         pi = ReinforceAgent(env.observation_space, env.action_space, **kwargs)
     elif method == 'actor-critic':
         pi = ActorCriticAgent(env.observation_space, env.action_space, **kwargs)
-
+    elif method == 'evolutionary':
+        pi = EvolutionaryAgent(env.observation_space, env.action_space, num_agents, **kwargs)
 
     average_trace_reward = np.zeros(train_length)
     for epoch in range(train_length):
         t_start = time.time()
-        trace_array, episode_len = sample_traces(env, pi, n_traces, verbose)
 
-        if verbose:
-            print("Updating Weights...", end="\r")
-        #loss = pi.update_with_loss(trace_array, episode_len)
-        loss = pi.update_policy(trace_array, episode_len)
-        average_trace_reward[epoch] = np.mean(episode_len)
+        if method == 'evolutionary':
+            agent_rewards = np.zeros(num_agents)
+            for i in range(num_agents):
+                pi.set_agent(i)
+                _, episode_len = sample_traces(env, pi, n_traces, render)
+                agent_rewards[i] = np.mean(episode_len)
+                pi.collect_return(i, np.mean(episode_len))
+            loss = pi.update_policy()
+
+            average_trace_reward[epoch] = np.mean(agent_rewards)
+        else:
+            trace_array, episode_len = sample_traces(env, pi, n_traces, render)
+
+            loss = pi.update_policy(trace_array, episode_len)
+            average_trace_reward[epoch] = np.mean(episode_len)
 
         if (epoch % save_freq) == 0 and save_rewards:
             pi.save(average_trace_reward[:epoch])
@@ -74,7 +85,8 @@ def train(method, train_length=100, n_traces=5, verbose=False,
                 exp_factor = pi.epsilon
             elif pi.exp_policy == 'softmax':
                 exp_factor = pi.temp
-            print(f"Completed Iteration {epoch} | Elapsed Time: {time.time() - t_start:.2f}s | Mean Reward: {average_trace_reward[epoch]:.1f} | Exploration Factor: {exp_factor:.2f} ({pi.exp_policy}) | Loss: {loss:.3f}")
+            print(
+                f"Completed Iteration {epoch} | Elapsed Time: {time.time() - t_start:.2f}s | Mean Reward: {average_trace_reward[epoch]:.1f} | Exploration Factor: {exp_factor:.2f} ({pi.exp_policy}) | Loss: {loss:.3f}")
 
         pi.anneal_policy_parameter(epoch, train_length)
     if save_rewards:
@@ -82,7 +94,8 @@ def train(method, train_length=100, n_traces=5, verbose=False,
 
 
 def main():
-    train('reinforce', train_length=100, n_traces=10, verbose=True, save_rewards=True, save_freq=100)
+    train('evolutionary', train_length=100, n_traces=5, verbose=True, render=True, save_rewards=False, save_freq=100,
+          num_agents=50)
 
 
 if __name__ == '__main__':
