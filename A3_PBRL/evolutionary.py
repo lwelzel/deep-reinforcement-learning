@@ -22,17 +22,29 @@ class EvolutionaryAgent(BaseAgent):
         self.u = elite_percentage
         self.elite_size = int(np.ceil(self.num_agents * self.u))
 
-        self.network = None
-        self.kernel_init = tf.random_normal_initializer
-        self.mean = initial_mean
-        self.std = initial_std
         self.fit_method = fit_method
 
+        if self.fit_method == 'simple':
+            # Single mean and stddev for all weights
+            self.kernel_init = tf.random_normal_initializer
+            self.mean = initial_mean
+            self.std = initial_std
+        elif self.fit_method == 'individual':
+            # Each weight has own mean and stddev
+            self.mean = np.full_like(self.network.get_weights(), 0., dtype=object)
+            self.std = np.full_like(self.network.get_weights(), 1.)
+            print(self.mean)
+            input()
+        else:
+            raise ValueError(f"Unknown fit method {self.fit_method}")
+
+        # Delete network created by BaseAgent, create new list of agents
+        self.network = None
         self.agents = []
         self.agent_returns = np.zeros(num_agents, dtype=float)
-        self.create_agents()
+        self.initialize_agents()
 
-    def create_agents(self):
+    def initialize_agents(self):
         """Creates a generation of agents"""
         self.agents = []  # delete all existing agents
         for i in range(self.num_agents):
@@ -48,9 +60,16 @@ class EvolutionaryAgent(BaseAgent):
         elite_weights = self.select_elite(self.agent_returns)
         self.mean, self.std = self.fit_gauss(elite_weights)
 
-        self.create_agents()
+        self.evolve_agents()
 
         return 0
+
+    def evolve_agents(self):
+        """"""
+        if self.fit_method == 'simple':
+            self.initialize_agents()
+        elif self.fit_method == 'individual':
+            pass
 
     def set_agent(self, i):
         self.network = self.agents[i]
@@ -78,3 +97,6 @@ class EvolutionaryAgent(BaseAgent):
             flat_weights = np.concatenate([flat_weights, flat])
 
             return np.nanmean(flat_weights), np.nanstd(flat_weights)
+        elif self.fit_method == 'individual':
+            pass
+
