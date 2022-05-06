@@ -148,9 +148,11 @@ class BaseAgent:
             input("Continue? ... ")
         else:
             for n_nodes in hidden_layers:
-                model.add(layers.Dense(n_nodes, activation=hidden_act, kernel_initializer=kernel_init))
+                model.add(layers.Dense(n_nodes, activation=hidden_act,
+                                       kernel_initializer=kernel_init,
+                                       bias_initializer=kernel_init))
 
-        model.add(layers.Dense(self.n_actions, kernel_initializer=kernel_init))
+        model.add(layers.Dense(self.n_actions, kernel_initializer=kernel_init, bias_initializer=kernel_init))
         if verbose:
             model.summary()
         model.compile(optimizer=optimizer)

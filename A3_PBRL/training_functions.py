@@ -95,7 +95,7 @@ def train(method, train_length=100, n_traces=5, verbose=False, render=False,
 
 def main():
     train('evolutionary', train_length=200, n_traces=5, verbose=True, render=True, save_rewards=True, save_freq=100,
-          num_agents=50, fit_method='individual')
+          num_agents=40, fit_method='individual', exp_policy=None, epsilon=0.2)
 
 
 if __name__ == '__main__':
