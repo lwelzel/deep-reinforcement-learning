@@ -165,7 +165,7 @@ if __name__ == '__main__':
     from scipy.signal import savgol_filter
 
     env = gym.make('CartPole-v1')
-    env._max_episode_steps = 500
+    env._max_episode_steps = 200
     pi = ActorCriticAgent(env.observation_space, env.action_space, )
     pi.model.summary()
     plot_model(pi.model, "a2c_model_graph.png",
