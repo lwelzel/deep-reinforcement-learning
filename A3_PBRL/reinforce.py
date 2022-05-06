@@ -17,140 +17,82 @@ class ReinforceAgent(BaseAgent):
     def __init__(self, state_space, action_space, **kwargs):
         super().__init__(state_space, action_space, name='reinforce', **kwargs)
 
-
-
-
-
     def update_policy(self, trace_array, episode_len):
-        """"Reinforce weights update function as described by Algorithm ??"""
-        weight_grad = np.zeros_like(self.network.get_weights(), dtype=object)
-
-        loss = 0
-        num_traces = trace_array.shape[0]
-        for i, trace in enumerate(trace_array):
-            cumu_trace_reward = 0
-            num_steps = episode_len[i]
-            trace = trace[:4 * num_steps]  # remove all trailing zeros
-            for t in reversed(range(num_steps)):
-                s = trace[4 * t]
-                a, r = int(trace[(4 * t) + 1][0]), int(trace[(4 * t) + 2][0])
-
-                cumu_trace_reward = r + self.discount * cumu_trace_reward
-                grad_log, log_prob = self.one_step_weight_grad(s, a, cumu_trace_reward, num_traces)
-                
-                weight_grad += grad_log
-                loss += (log_prob * cumu_trace_reward)
-        loss = -loss/num_traces
-
-        self.update_weights(weight_grad)
-        
-        return loss
-
-
-    def one_step_weight_grad(self, s, a, cumu_trace_reward, num_traces):
-        """Computes the one step gradient update"""
-        s_tensor = tf.constant(s, shape=(1, 4))
-        with tf.GradientTape() as tape:
-            log_prob = self.get_log_prob_tf(s_tensor, a)
-            
-        grad_log = tape.gradient(log_prob, self.network.trainable_variables)
-        grad_log = [(cumu_trace_reward/num_traces) * item.numpy() for item in grad_log]
-
-        return grad_log, log_prob
-
-
-
-
-
-    def update_with_loss(self, trace_array, episode_len):
         """REINFORCE weights update through automatic differentiation of a loss function"""
         num_traces = trace_array.shape[0]
-        loss = 0 
-        
-        with tf.GradientTape() as tape: #Tensorflow handles differentiation
+        loss = 0
+
+        with tf.GradientTape() as tape:  # Tensorflow handles differentiation
             for i, trace in enumerate(trace_array):
                 cumu_trace_reward = 0
                 num_steps = episode_len[i]
-                trace = trace[:4*num_steps]
+                trace = trace[:4 * num_steps]
                 for t in reversed(range(num_steps)):
-                    s = trace[4*t]
+                    s = trace[4 * t]
                     a, r = int(trace[(4 * t) + 1][0]), int(trace[(4 * t) + 2][0])
-                    
+
                     cumu_trace_reward = r + self.discount * cumu_trace_reward
-                    
+
                     s_tensor = tf.constant(s, shape=(1, 4))
-                    
-                    
+
                     log_prob = self.get_log_prob_tf(s_tensor, a)
                     loss += (log_prob * cumu_trace_reward)
-            loss = -loss/num_traces
-                
+            loss = -loss / num_traces
+
         loss_grad = tape.gradient(loss, self.network.trainable_variables)
-        self.update_weights(loss_grad)
-        
+        self.grad_descent(loss_grad)
+
         return loss
-        
-        
-        
-        #loss_grad = [item.numpy() for item in loss_grad]
-        
-        #weight_grad = np.zeros_like(self.network.get_weights(), dtype=object)
-        #convert to numpy to use for copying to network
-        #weight_grad += loss_grad
 
-        #self.update_weights(weight_grad)
-                    
-                
-                
-                
-
-        #loss = -tf.math.divide(loss, num_traces)
-    
-        
-        ##########TOO MANY STEPS ?####################################
-        #with tf.GradientTape() as tape:
-        #    loss = tf.Variable(0,dtype='float32',name='loss')
-        #    for i, trace in enumerate(trace_array):
-        #        cumu_trace_reward = 0
-        #        num_steps = episode_len[i]
-        #        trace = trace[:4*num_steps]
-        #        for t in reversed(range(num_steps)):
-        #            s = trace[4*t]
-        #            a, r = int(trace[(4 * t) + 1][0]), int(trace[(4 * t) + 2][0])
-        #            
-        #            cumu_trace_reward = r + self.discount * cumu_trace_reward
-        #            
-        #            s_tensor = tf.constant(s, shape=(1, 4))
-        #            log_prob = self.get_log_prob_tf(s_tensor, a)
-        #            
-        #                
-        #            loss = loss +  tf.convert_to_tensor(cumu_trace_reward * log_prob, dtype='float32')
-        #
-        #    loss = -tf.math.divide(loss, num_traces)
-        ############################################################
-        
-        
-            
-                
-        
-        
     def get_log_prob_tf(self, s, a):
         """Get action probabilities (normalized to 1) using tf.tensors"""
         actions = self.network(s)[0]
-        
-        #actions = tf.math.divide(actions, tf.math.reduce_sum(actions))
         dist = tfp.distributions.Categorical(logits=actions)
+        return dist.log_prob(a)
 
-        return dist.log_prob(a)        
-        
-        
-        
-        
 
-    # def loss_function(self, trace_array, episode_len):
-    #    """Full loss function to push through automatic differentiation"""loss
+
+        ###########################################################################################
+    #def update_policy(self, trace_array, episode_len):
+    #    """"Reinforce weights update function as described by Algorithm ??"""
+    #    weight_grad = np.zeros_like(self.network.get_weights(), dtype=object)
+    #
+    #    loss = 0
     #    num_traces = trace_array.shape[0]
-    #    for i, trace in enumerate(trace_array)
+    #    for i, trace in enumerate(trace_array):
+    #        cumu_trace_reward = 0
+    #        num_steps = episode_len[i]
+    #        trace = trace[:4 * num_steps]  # remove all trailing zeros
+    #        for t in reversed(range(num_steps)):
+    #            s = trace[4 * t]
+    #            a, r = int(trace[(4 * t) + 1][0]), int(trace[(4 * t) + 2][0])
+    #
+    #            cumu_trace_reward = r + self.discount * cumu_trace_reward
+    #            grad_log, log_prob = self.one_step_weight_grad(s, a, cumu_trace_reward, num_traces)
+    #
+    #            weight_grad += grad_log
+    #            loss += (log_prob * cumu_trace_reward)
+    #    loss = -loss/num_traces
+    #
+    #    self.update_weights(weight_grad)
+    #
+    #    return loss
+    #
+    #
+    #def one_step_weight_grad(self, s, a, cumu_trace_reward, num_traces):
+    #    """Computes the one step gradient update"""
+    #    s_tensor = tf.constant(s, shape=(1, 4))
+    #    with tf.GradientTape() as tape:
+    #        log_prob = self.get_log_prob_tf(s_tensor, a)
+    #
+    #    grad_log = tape.gradient(log_prob, self.network.trainable_variables)
+    #    grad_log = [(cumu_trace_reward/num_traces) * item.numpy() for item in grad_log]
+    #
+    #    return grad_log, log_prob
+    #
+    ############################################################
+
+
 
 
 def custom_train_reinforce():

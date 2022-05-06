@@ -80,14 +80,15 @@ class ActorCriticAgent(object):
         """
         # TODO: https://stats.stackexchange.com/questions/221402/understanding-the-role-of-the-discount-factor-in-reinforcement-learning
 
-        returns = np.zeros(len(rewards))
+        returns = np.zeros(len(rewards) + 1)
+        returns[-1] = predicted_value
         for t in np.flip(np.arange(len(rewards))):
             returns[t] = rewards[t] + gamma * np.roll(returns, -1)[t] * (1 - dones[t])
 
-        return returns
+        return returns[:-1]
 
-    def get_advantage(self, target_values, rewards, dones):
-        returns = self.get_discounted_rewards(rewards, dones, self.gamma)
+    def get_advantage(self, target_values, rewards, dones, next_value):
+        returns = self.get_discounted_rewards(rewards, dones, self.gamma, next_value)
         return returns - target_values, returns
 
     @tf.function
@@ -111,10 +112,12 @@ class ActorCriticAgent(object):
 
         return policy_loss - entropy_loss * self.entropy_rc
 
-    def update_policy(self, trace_array, actions, rewards, values, dones):
+    def update_policy(self, trace_array, actions, rewards, values, dones, next_state):
+        __, next_value = self.model(np.reshape(next_state, (-1, self.state_space_size)))
         advantages, returns = self.get_advantage(target_values=values,
                                                  rewards=rewards,
-                                                 dones=dones)
+                                                 dones=dones,
+                                                 next_value=float(next_value))
 
         actions_advantage = np.stack((actions, advantages), axis=-1)
 
@@ -124,7 +127,7 @@ class ActorCriticAgent(object):
         return losses
 
 
-def custom_train_actor_critic(env, pi, batch_size=64, updates=2000):
+def custom_train_actor_critic(env, pi, batch_size=64, updates=300):
         actions = np.empty((batch_size,), dtype=int)
         rewards, dones, values = np.empty((3, batch_size))
         observations = np.empty((batch_size,) + env.observation_space.shape)
@@ -151,14 +154,13 @@ def custom_train_actor_critic(env, pi, batch_size=64, updates=2000):
                     print(f"Update: {t_ep:03.0f} =>  mean recent rewards: {np.mean(ep_rolling_rewards):03.0f}")
 
                     next_obs = env.reset()
-            losses = pi.update_policy(observations, actions, rewards, values, dones)
+            losses = pi.update_policy(observations, actions, rewards, values, dones, next_obs)
 
         return ep_rewards[np.nonzero(ep_rewards)]
 
 
 if __name__ == '__main__':
     import gym
-    from training_functions import sample_traces
     from tensorflow.keras.utils import plot_model
     from scipy.signal import savgol_filter
 
