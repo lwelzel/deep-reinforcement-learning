@@ -15,7 +15,7 @@ from base_agent import BaseAgent
 
 class ReinforceAgent(BaseAgent):
     def __init__(self, state_space, action_space, **kwargs):
-        super().__init__(state_space, action_space, name='reinforce', **kwargs)
+        super().__init__(state_space, action_space, **kwargs)
 
     def update_policy(self, trace_array, episode_len):
         """REINFORCE weights update through automatic differentiation of a loss function"""
@@ -33,7 +33,7 @@ class ReinforceAgent(BaseAgent):
 
                     cumu_trace_reward = r + self.discount * cumu_trace_reward
 
-                    s_tensor = tf.constant(s, sshape=(1, 4))
+                    s_tensor = tf.constant(s, shape=(1, 4))
 
                     log_prob = self.get_log_prob_tf(s_tensor, a)
                     loss += (log_prob * cumu_trace_reward)
