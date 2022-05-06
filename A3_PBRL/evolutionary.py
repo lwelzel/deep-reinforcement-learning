@@ -16,7 +16,11 @@ class EvolutionaryAgent(BaseAgent):
     def __init__(self, state_space, action_space,
                  num_agents=25, elite_percentage=0.1, initial_mean=0, initial_std=1,
                  kernel_init=tf.random_normal_initializer, fit_method='simple',
+<<<<<<< HEAD
                  name='evolutionary', **kwargs):
+=======
+                 **kwargs):
+>>>>>>> 24cd2c39f34e1ae7169a03bca6befb634374356c
         super().__init__(state_space, action_space, name='evolutionary', kernel_init=kernel_init, **kwargs)
 
         self.num_agents = num_agents
@@ -63,7 +67,11 @@ class EvolutionaryAgent(BaseAgent):
         self.fit_gauss(elite_weights)
 
         self.evolve_agents()
+<<<<<<< HEAD
         #print(f"Updating Generation took {time.time()-t0} seconds")
+=======
+        print(f"Updating Generation took {time.time()-t0} seconds")
+>>>>>>> 24cd2c39f34e1ae7169a03bca6befb634374356c
         return 0  # training func. excepts a loss value
 
     def evolve_agents(self):
@@ -75,6 +83,11 @@ class EvolutionaryAgent(BaseAgent):
                 new_weights = np.zeros_like(agent.get_weights())
                 for i in range(len(agent.get_weights())):
                     new_weights[i] = np.random.normal(self.mean[i], self.std[i], self.mean[i].shape)
+<<<<<<< HEAD
+=======
+                    if i == 5:
+                        print(new_weights[i])
+>>>>>>> 24cd2c39f34e1ae7169a03bca6befb634374356c
                 agent.set_weights(new_weights)
 
     def set_agent(self, i):
@@ -106,7 +119,11 @@ class EvolutionaryAgent(BaseAgent):
             self.std = np.nanstd(flat_weights)
 
         elif self.fit_method == 'individual':
+<<<<<<< HEAD
             for set in range	(len(weights[0])):
+=======
+            for set in range(len(weights[0])):
+>>>>>>> 24cd2c39f34e1ae7169a03bca6befb634374356c
                 w_set = []
                 for i in range(self.elite_size):
                     w_set.append(weights[i][set])
