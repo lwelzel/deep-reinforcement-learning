@@ -14,6 +14,7 @@ from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.losses import mean_squared_error, SparseCategoricalCrossentropy, CategoricalCrossentropy
 from base_agent import BaseAgent
 from actor_critic_model import ActorCriticModel
+from tqdm import tqdm
 
 
 class ActorCriticAgent(object):
@@ -23,7 +24,10 @@ class ActorCriticAgent(object):
                  anneal_method='exponential',
                  decay=0.999, epsilon_min=0.01, temp_min=0.1,
                  learning_rate=5e-3, discount=0.95,
-                 hidden_layers=(64, 64), hidden_act='relu', kernel_init=None,
+                 hidden_layers_actor=(32, 16), hidden_act_actor='relu',
+                 kernel_init_actor="glorot_uniform", actor_output_activation=None,
+                 hidden_layers_critic=(32, 16), hidden_act_critic='relu',
+                 kernel_init_critic="glorot_uniform", critic_output_activation=None,
                  name="", id=0,
                  **kwargs):
         super(ActorCriticAgent, self).__init__()
@@ -57,12 +61,12 @@ class ActorCriticAgent(object):
         # IMPORTANT: If the model 'actor_prop_rescale_policy' is not a function that normalizes the output probabilities
         # you need to change the 'from_logits' option in 'SparseCategoricalCrossentropy' to 'True'
         self.model = ActorCriticModel(self.action_state_size, self.state_space_size,
-                                      hidden_layers_actor=(32, 16), hidden_act_actor='relu',
-                                      kernel_init_actor='glorot_uniform',
-                                      hidden_layers_critic=(32, 16), hidden_act_critic='relu',
-                                      kernel_init_critic='glorot_uniform',
-                                      actor_output_activation=None,
-                                      critic_output_activation=None)  # softmax
+                                      hidden_layers_actor=hidden_layers_actor, hidden_act_actor=hidden_act_actor,
+                                      kernel_init_actor=kernel_init_actor,
+                                      hidden_layers_critic=hidden_layers_critic, hidden_act_critic=hidden_act_critic,
+                                      kernel_init_critic=kernel_init_critic,
+                                      actor_output_activation=actor_output_activation,
+                                      critic_output_activation=critic_output_activation)  # softmax
 
         self.model.compile(optimizer=RMSprop(lr=learning_rate),
                            loss=[self.policy_loss, self.value_loss], )
@@ -127,36 +131,41 @@ class ActorCriticAgent(object):
         return losses
 
 
-def custom_train_actor_critic(env, pi, batch_size=64, updates=300):
-        actions = np.empty((batch_size,), dtype=int)
-        rewards, dones, values = np.empty((3, batch_size))
-        observations = np.empty((batch_size,) + env.observation_space.shape)
+def train_actor_critic(env, num_epochs, batch_size=64, **kwargs):
+    pi = ActorCriticAgent(env.observation_space, env.action_space, **kwargs)
+    pi.model.summary()
+    plot_model(pi.model, "a2c_model_graph.png",
+               show_shapes=True,
+               show_layer_names=True,
+               expand_nested=True,
+               )
 
-        ep_rewards = np.zeros(batch_size * updates)
-        ep_rolling_rewards = np.zeros(10)
+    actions = np.full(batch_size, fill_value=np.nan, dtype=int)
+    rewards, dones, values = np.full((3, batch_size), fill_value=np.nan)
+    states = np.full((batch_size, 4), fill_value=np.nan)
+    episode_rewards = np.zeros(num_epochs * 2, dtype=int)
+    batch_counter = np.arange(batch_size)
 
+    t_ep = 0
+    next_state = env.reset()
+    with tqdm(total=num_epochs, leave=False, unit='Ep', postfix="") as pbar:
+        while t_ep <= num_epochs:
+            for t in batch_counter:
+                states[t] = next_state.copy()
+                actions[t], values[t] = pi.select_action(states[t])
 
-        # update every 64 steps, from literature
-        t_ep = 0
-        next_obs = env.reset()
-        for update in range(updates):
-            for step in range(batch_size):
-                observations[step] = next_obs.copy()
-                actions[step], values[step] = pi.select_action(np.expand_dims(observations[step, :], axis=0))
+                next_state, rewards[t], dones[t], _ = env.step(actions[t])
+                episode_rewards[t_ep] += rewards[t]
 
-                next_obs, rewards[step], dones[step], _ = env.step(actions[step])
-
-                ep_rewards[t_ep] += rewards[step]
-                if dones[step]:
-                    np.put(ep_rolling_rewards, t_ep, ep_rewards[t_ep], mode="wrap")
+                if dones[t]:
                     t_ep += 1
-
-                    print(f"Update: {t_ep:03.0f} =>  mean recent rewards: {np.mean(ep_rolling_rewards):03.0f}")
-
-                    next_obs = env.reset()
-            losses = pi.update_policy(observations, actions, rewards, values, dones, next_obs)
-
-        return ep_rewards[np.nonzero(ep_rewards)]
+                    pbar.set_postfix({'Mean recent R':
+                                          f"{np.mean(episode_rewards[np.clip(t_ep-50, a_min=0, a_max=None):t_ep]):02f}"})
+                    pbar.update(1)
+                    next_state = env.reset()
+            losses = pi.update_policy(states, actions, rewards, values, dones, next_state)
+    pbar.close()
+    return episode_rewards[:num_epochs]
 
 
 if __name__ == '__main__':
@@ -166,18 +175,13 @@ if __name__ == '__main__':
 
     env = gym.make('CartPole-v1')
     env._max_episode_steps = 200
-    pi = ActorCriticAgent(env.observation_space, env.action_space, )
-    pi.model.summary()
-    plot_model(pi.model, "a2c_model_graph.png",
-               show_shapes=True,
-               show_layer_names=True,
-               expand_nested=True,
-               )
 
+    rewards = train_actor_critic(env, num_epochs=500,
+                                 hidden_layers_actor=(256, 64, 16),
+                                 hidden_layers_critic=(256, 64, 16))
 
-    rewards = custom_train_actor_critic(env, pi)
-
-    plt.plot(savgol_filter(rewards, window_length=21, polyorder=1))
+    plt.plot(savgol_filter(rewards, window_length=51, polyorder=1), linestyle="solid")
+    plt.plot(savgol_filter(rewards, window_length=3, polyorder=1), alpha=0.5, linestyle="dashed", linewidth=0.75)
     plt.xlabel("Episode")
     plt.ylabel("Rewards")
     plt.show()

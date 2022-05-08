@@ -11,9 +11,9 @@ import gym
 import time
 
 from reinforce import ReinforceAgent
-from actor_critic import ActorCriticAgent
+from actor_critic import train_actor_critic
 from evolutionary import EvolutionaryAgent
-
+from tqdm import tqdm
 
 
 def sample_traces(env, pi, n_traces, render=False):
@@ -61,7 +61,7 @@ def train(method, num_epochs=200, num_traces=5, num_agents=25,
     if method == 'reinforce':
         train_reinforce(env, **kwargs)
     elif method == 'actor-critic':
-        train_ac(env, **kwargs)
+        train_actor_critic(env, num_epochs, **kwargs)
     elif method == 'evolutionary':
         train_evo(env, **kwargs)
         
@@ -76,19 +76,21 @@ def train_reinforce(env, num_epochs=200, num_traces=5,
                     
     pi = ReinforceAgent(env.observation_space, env.action_space, **kwargs)
     average_trace_reward = np.zeros(num_epochs)
-    
-    for epoch in range(num_epochs):
-        trace_array, episode_len = sample_traces(env, pi, num_traces, render)
-        _ = pi.update_policy(trace_array, episode_len)
-        average_trace_reward[epoch] = np.mean(episode_len)
-        
-        if (epoch % save_freq) == 0 and save_rewards:
-            pi.save(average_trace_reward[:epoch])
-            
-        if verbose:
-            print(f"Epoch {epoch} |  Elapsed Time: {time.time() - t_start:.2f}s | Mean Reward: {average_trace_reward[epoch]:.1f}")
-            
-        pi.anneal_policy_parameter(epoch, num_epochs)
+
+    with tqdm(total=num_epochs, leave=False, unit='Ep', postfix="") as pbar:
+        for epoch in range(num_epochs):
+            trace_array, episode_len = sample_traces(env, pi, num_traces, render)
+            _ = pi.update_policy(trace_array, episode_len)
+            average_trace_reward[epoch] = np.mean(episode_len)
+
+            if (epoch % save_freq) == 0 and save_rewards:
+                pi.save(average_trace_reward[:epoch])
+
+            pi.anneal_policy_parameter(epoch, num_epochs)
+
+            pbar.set_postfix({'Mean recent R':
+                                  f"{np.mean(average_trace_reward[np.clip(epoch - 50, a_min=0, a_max=None):epoch]):02f}"})
+            pbar.update(1)
     
     if save_rewards:
         pi.save(average_trace_reward)
@@ -101,25 +103,27 @@ def train_evo(env, num_epochs=20, num_traces=5, num_agents=50,
                     
     pi = EvolutionaryAgent(env.observation_space, env.action_space, num_agents, **kwargs)
     average_trace_reward = np.zeros(num_epochs)
-    
-    for epoch in range(num_epochs):
-        agent_rewards = np.zeros(num_agents)
-        for i in range(num_agents):
-            pi.set_agent(i)
-            _, episode_len = sample_traces(env, pi, num_traces, render)
-            agent_rewards[i] = np.mean(episode_len)
-            pi.collect_return(i, np.mean(episode_len))
-        _ = pi.update_policy()
 
-        average_trace_reward[epoch] = np.mean(agent_rewards)   
-        
-        if (epoch % save_freq) == 0 and save_rewards:
-            pi.save(average_trace_reward[:epoch])
-            
-        if verbose:
-            print(f"Epoch {epoch} |  Elapsed Time: {time.time() - t_start:.2f}s | Mean Reward: {average_trace_reward[epoch]:.1f}")
-            
-        pi.anneal_policy_parameter(epoch, num_epochs)
+    with tqdm(total=num_epochs, leave=False, unit='Ep', postfix="") as pbar:
+        for epoch in range(num_epochs):
+            agent_rewards = np.zeros(num_agents)
+            for i in range(num_agents):
+                pi.set_agent(i)
+                _, episode_len = sample_traces(env, pi, num_traces, render)
+                agent_rewards[i] = np.mean(episode_len)
+                pi.collect_return(i, np.mean(episode_len))
+            _ = pi.update_policy()
+
+            average_trace_reward[epoch] = np.mean(agent_rewards)
+
+            if (epoch % save_freq) == 0 and save_rewards:
+                pi.save(average_trace_reward[:epoch])
+
+            pi.anneal_policy_parameter(epoch, num_epochs)
+
+            pbar.set_postfix({'Mean recent R':
+                                  f"{np.mean(average_trace_reward[np.clip(epoch - 50, a_min=0, a_max=None):epoch]):02f}"})
+            pbar.update(1)
     
     if save_rewards:
         pi.save(average_trace_reward)
