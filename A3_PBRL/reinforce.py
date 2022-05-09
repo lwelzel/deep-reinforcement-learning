@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #######################
 #
-#  Reinforce Class
+#  Reinforce Agent Class
 #
 #######################
 
@@ -24,19 +24,25 @@ class ReinforceAgent(BaseAgent):
 
         with tf.GradientTape() as tape:  # Tensorflow handles differentiation
             for i, trace in enumerate(trace_array):
-                cumu_trace_reward = 0
                 num_steps = episode_len[i]
                 trace = trace[:4 * num_steps]
+                discounted_rewards = np.zeros(num_steps)
+                # Compute the discounted_rewards backwards to easily account for future discount
                 for t in reversed(range(num_steps)):
-                    s = trace[4 * t]
-                    a, r = int(trace[(4 * t) + 1][0]), int(trace[(4 * t) + 2][0])
+                    r = int(trace[(4 * t) + 2][0])
+                    discounted_rewards[t] = r + self.discount * discounted_rewards[np.clip(t+1, 0, num_steps-1)]
 
-                    cumu_trace_reward = r + self.discount * cumu_trace_reward
+                # Normalize discounted rewards
+                discounted_rewards = (discounted_rewards - np.mean(discounted_rewards))/(np.std(discounted_rewards) + 1e-9)
+
+                for t in range(num_steps):
+                    s = trace[4 * t]
+                    a = int(trace[(4 * t) + 1][0])
 
                     s_tensor = tf.constant(s, shape=(1, 4))
 
                     log_prob = self.get_log_prob_tf(s_tensor, a)
-                    loss += (log_prob * cumu_trace_reward)
+                    loss += (log_prob * discounted_rewards[t])
             loss = -loss / num_traces
 
         loss_grad = tape.gradient(loss, self.network.trainable_variables)
@@ -47,15 +53,27 @@ class ReinforceAgent(BaseAgent):
     def get_log_prob_tf(self, s, a):
         """Get action probabilities (normalized to 1) using tf.tensors"""
         actions = self.network(s)[0]
-        dist = tfp.distributions.Categorical(logits=actions) # TODO: tf.random.Categorical ?
+        dist = tfp.distributions.Categorical(logits=actions) # logits because actions isn't normalized
         return dist.log_prob(a)
+
+    
+    def grad_descent(self, weights_grad):
+        """Update the network weights using gradient from loss function"""
+        weights = self.network.get_weights()
+        new_weights = np.array([weight - (weight_grad * self.learning_rate)
+                                for weight, weight_grad
+                                in zip(weights, weights_grad)],
+                               dtype=object)
+
+        self.network.set_weights(new_weights)
 
 
  
 
 
 def main():
-    pass
+    env = gym.make('CartPole-v1')
+    pi = ReinforceAgent(env.observation_space, env.action_space)
 
 
 if __name__ == '__main__':
