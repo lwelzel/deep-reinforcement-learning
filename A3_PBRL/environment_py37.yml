@@ -1,0 +1,5 @@
+name: drl37
+channels:
+  - conda-forge
+  - defaults
+prefix: C:\Users\lukas\anaconda3\envs\drl37\envs\drl37

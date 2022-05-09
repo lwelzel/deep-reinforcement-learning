@@ -34,35 +34,3 @@ TLDR:
 
 ## Authors & Copyleft
 See project overview for authors.
-
-## To Dos:
-### ESSENTIAL:
-- [ ] Plotting (CI, axis etc)
-- [ ] 
-- [ ] 
-- [ ] Export environment.yml file
-- [ ] Export requirements.txt file
-
-### Backend:
-- [ ] 
-- [ ] 
-- [ ] 
-- [ ] 
-- [ ] 
-- [ ] 
-
-
-### Plotting:
-- [ ] 
-- [ ] 
-
-
-### Expand Scope:
-- [ ] Buffers
-- [ ] 
-
-
-### Prettyfication: (most important)
-- [ ] 
-- [ ] 
-
