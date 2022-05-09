@@ -26,7 +26,7 @@ TLDR:
    3. wrapper.py for a parallel training of many agents (watch out, this might cause flashing lights ont the console due to scrambled print statements and progress bars)
 2. A progress bar will show
 3. The result (network and rewards) will be saved intermittently 
-### Analyzing the DQNResult
+### Analyzing the A2C Result
 1. Run plot_rewards_ac.py to plot specific results or the saved results in the A2C_runs directory
 
 ## Use REINFORCE / CEM-Evolutionary
@@ -42,7 +42,7 @@ TLDR:
    2. training_functions for test training for either REINFORCE or CEM 
 2. A progress bar will show
 3. The result (rewards) will be saved intermittently 
-### Analyzing the DQNResult
+### Analyzing the REINFORCE / CEM-Evolutionary Result
 1. Run plot_rewards.py to plot specific results or the saved results in the runs directory
 
 ---
