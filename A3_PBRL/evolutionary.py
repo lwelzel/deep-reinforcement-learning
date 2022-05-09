@@ -106,7 +106,7 @@ class EvolutionaryAgent(BaseAgent):
             self.std = np.nanstd(flat_weights)
 
         elif self.fit_method == 'individual':
-            for set in range	(len(weights[0])):
+            for set in range(len(weights[0])):
                 w_set = []
                 for i in range(self.elite_size):
                     w_set.append(weights[i][set])
