@@ -25,7 +25,7 @@ class BaseAgent:
                  max_reward=500,
                  exp_policy='egreedy', epsilon=1., temperature=1.,
                  anneal_method='exponential',
-                 decay=0.999, epsilon_min=0.01, temp_min=0.1,
+                 decay=0.95, epsilon_min=0.01, temp_min=0.1,
                  learning_rate=0.01, discount=0.8,
                  hidden_layers=[256, 256], hidden_act='relu',
                  kernel_init='he_uniform', optimizer='adam',
@@ -153,7 +153,7 @@ class BaseAgent:
                                        kernel_initializer=kernel_init,
                                        bias_initializer=kernel_init))
 
-        model.add(layers.Dense(self.n_actions, kernel_initializer=kernel_init, bias_initializer=kernel_init))
+        model.add(layers.Dense(self.n_actions, kernel_initializer=kernel_init, activation='softmax', bias_initializer=kernel_init))
         if verbose:
             model.summary()
         model.compile(optimizer=optimizer)
