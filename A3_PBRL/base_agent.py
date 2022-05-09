@@ -3,7 +3,9 @@
 
 #######################
 #
-#  Parent class for all training agents 
+#  Parent class for REINFORCE and evolutionary agents
+#  Contains all shared hyperparameters, exploration methods
+#  Annealing method, and save functionality
 #
 #######################
 
@@ -27,7 +29,8 @@ class BaseAgent:
                  anneal_method='exponential',
                  decay=0.95, epsilon_min=0.01, temp_min=0.1,
                  learning_rate=0.01, discount=0.8,
-                 hidden_layers=[256, 256], hidden_act='relu',
+                 hidden_layers=[256, 256], 
+                 hidden_act='relu', out_act='softmax',
                  kernel_init='he_uniform', optimizer='adam',
                  name="", id=0):
 
@@ -78,9 +81,10 @@ class BaseAgent:
 
         self.hidden_layers = hidden_layers
         self.hidden_act = hidden_act
+        self.out_act = out_act
         self.kernel_init = kernel_init
         self.optimizer = optimizer
-        self.network = self._create_neural_net(hidden_layers, hidden_act, kernel_init, optimizer)
+        self.network = self._create_neural_net(hidden_layers, hidden_act, out_act kernel_init, optimizer)
 
         self.agent_name = f"run{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
         #self.dir = Path(f"{name}_a={learning_rate}_g={discount}_{exp_policy}_{anneal_method}_id={id}")
@@ -138,7 +142,7 @@ class BaseAgent:
     def anneal_softmax_linear(self, t, t_final):
         self.temp = self.linear_anneal(t, t_final, self.temp_min, self.temp_max)
 
-    def _create_neural_net(self, hidden_layers, hidden_act, kernel_init, optimizer, verbose=False):
+    def _create_neural_net(self, hidden_layers, hidden_act, out_act, kernel_init, optimizer, verbose=False):
         """Neural Network Policy"""
 
         model = Sequential()
@@ -153,32 +157,13 @@ class BaseAgent:
                                        kernel_initializer=kernel_init,
                                        bias_initializer=kernel_init))
 
-        model.add(layers.Dense(self.n_actions, kernel_initializer=kernel_init, activation='softmax', bias_initializer=kernel_init))
+        model.add(layers.Dense(self.n_actions, kernel_initializer=kernel_init, activation=out_act, bias_initializer=kernel_init))
         if verbose:
             model.summary()
         model.compile(optimizer=optimizer)
 
         return model
 
-    def update_weights(self, weights_grad):
-        """Weights Update using Learning Rate"""
-        weights = self.network.get_weights()
-        new_weights = np.array([weight * (1. - self.learning_rate) + weight_grad * self.learning_rate
-                                for weight, weight_grad
-                                in zip(weights, weights_grad)],
-                               dtype=object)
-
-        self.network.set_weights(new_weights)
-
-    def grad_descent(self, weights_grad):
-        """Weights Update using Learning Rate"""
-        weights = self.network.get_weights()
-        new_weights = np.array([weight - (weight_grad * self.learning_rate)
-                                for weight, weight_grad
-                                in zip(weights, weights_grad)],
-                               dtype=object)
-
-        self.network.set_weights(new_weights)
 
     def save(self, rewards):
         """Saves rewards list to directory"""

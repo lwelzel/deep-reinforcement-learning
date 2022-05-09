@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 #######################
 #
-#  Evolutionary Agent
+#  Evolutionary Agent Class
 #
 #######################
 
 import tensorflow as tf
 import numpy as np
-import time
+import gym
 from base_agent import BaseAgent
 
 
@@ -35,7 +35,6 @@ class EvolutionaryAgent(BaseAgent):
             # Each weight has own mean and stddev
             self.mean = np.zeros_like(self.network.get_weights(), dtype=object)
             self.std = np.zeros_like(self.network.get_weights(), dtype=object)
-
         else:
             raise ValueError(f"Unknown fit method {self.fit_method}")
 
@@ -43,14 +42,16 @@ class EvolutionaryAgent(BaseAgent):
         self.network = None
         self.agents = []
         self.agent_returns = np.zeros(num_agents, dtype=float)
-        self.initialize_agents()
+        # Each first generation is sampled using \mu=0, \sigma=1. Can keep it as general function
+        self.initialize_agents() 
 
     def initialize_agents(self):
-        """Creates a generation of agents"""
-        self.agents = []  # delete all existing agents
+        """Creates the (first) generation of agents"""
+        self.agents = []  # delete all existing agents if they exist
         for i in range(self.num_agents):
             agent = self._create_neural_net(hidden_layers=self.hidden_layers,
                                             hidden_act=self.hidden_act,
+                                            out_act=self.out_act,
                                             kernel_init=self.kernel_init(mean=self.initial_mean, stddev=self.initial_std),
                                             optimizer=self.optimizer,
                                             verbose=False)
@@ -58,16 +59,14 @@ class EvolutionaryAgent(BaseAgent):
 
     def update_policy(self):
         """Evolves the agents one generation after having received returns"""
-        t0 = time.time()
         elite_weights = self.select_elite(self.agent_returns)
         self.fit_gauss(elite_weights)
-
         self.evolve_agents()
-        #print(f"Updating Generation took {time.time()-t0} seconds")
         return 0  # training func. excepts a loss value
 
     def evolve_agents(self):
-        """"""
+        """Given the refitted weights by fit_gauss creates a new
+        generation of agents"""
         if self.fit_method == 'simple':
             self.initialize_agents()
         elif self.fit_method == 'individual':
@@ -78,13 +77,18 @@ class EvolutionaryAgent(BaseAgent):
                 agent.set_weights(new_weights)
 
     def set_agent(self, i):
+        """Set agent i as current 'main' network for compatibility with
+        action selection functions in BaseAgent"""
         self.network = self.agents[i]
 
     def collect_return(self, i, r):
+        """Save averaged agent rewards
+        saved in self for mobility"""
         self.agent_returns[i] = r
 
     def select_elite(self, rewards):
-        """Given a set of full rewards, gives """
+        """Given a set of full rewards, returns a list with weights of the 
+        best performing agents"""
         elite_idxs = np.argpartition(rewards, -self.elite_size)[-self.elite_size:]
 
         elite_weights = []
@@ -112,4 +116,9 @@ class EvolutionaryAgent(BaseAgent):
                     w_set.append(weights[i][set])
                 self.mean[set] = np.nanmean(w_set, axis=0)
                 self.std[set] = np.nanstd(w_set, axis=0)
+
+
+main():
+    env = gym.make('CartPole-v1')
+    pi = EvolutionaryAgent(env.observation_space, env.action_space)
 
