@@ -22,21 +22,27 @@ class ReinforceAgent(BaseAgent):
         num_traces = trace_array.shape[0]
         loss = 0
 
+
         with tf.GradientTape() as tape:  # Tensorflow handles differentiation
             for i, trace in enumerate(trace_array):
-                cumu_trace_reward = 0
                 num_steps = episode_len[i]
                 trace = trace[:4 * num_steps]
+                discounted_rewards = np.zeros(num_steps)
                 for t in reversed(range(num_steps)):
-                    s = trace[4 * t]
-                    a, r = int(trace[(4 * t) + 1][0]), int(trace[(4 * t) + 2][0])
+                    r = int(trace[(4 * t) + 2][0])
+                    discounted_rewards[t] = r + self.discount * discounted_rewards[np.clip(t+1, 0, num_steps-1)]
 
-                    cumu_trace_reward = r + self.discount * cumu_trace_reward
+                # Normalize discounted rewards
+                discounted_rewards = (discounted_rewards - np.mean(discounted_rewards))/(np.std(discounted_rewards) + 1e-9)
+
+                for t in range(num_steps):
+                    s = trace[4 * t]
+                    a = int(trace[(4 * t) + 1][0])
 
                     s_tensor = tf.constant(s, shape=(1, 4))
 
                     log_prob = self.get_log_prob_tf(s_tensor, a)
-                    loss += (log_prob * cumu_trace_reward)
+                    loss += (log_prob * discounted_rewards[t])
             loss = -loss / num_traces
 
         loss_grad = tape.gradient(loss, self.network.trainable_variables)
@@ -47,7 +53,7 @@ class ReinforceAgent(BaseAgent):
     def get_log_prob_tf(self, s, a):
         """Get action probabilities (normalized to 1) using tf.tensors"""
         actions = self.network(s)[0]
-        dist = tfp.distributions.Categorical(logits=actions) # TODO: tf.random.Categorical ?
+        dist = tfp.distributions.Categorical(logits=actions)
         return dist.log_prob(a)
 
 
