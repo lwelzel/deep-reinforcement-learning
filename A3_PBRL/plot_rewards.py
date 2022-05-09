@@ -65,7 +65,7 @@ def plot_reinforce_variability(*args):
                            constrained_layout=True,
                            figsize=(9, 6))
     
-    rewards, n = read_all_rewards(Path("REINFORCE/variability"), plot_all_paths=True)
+    rewards, n = read_all_rewards(Path("Rewards/REINFORCE/variability"), plot_all_paths=True)
     label = "Average Over 4 Runs"
     plot_rewards_batch(rewards, label)
     
@@ -87,15 +87,15 @@ def plot_reinforce_anneal(*args):
                            constrained_layout=True,
                            figsize=(9, 6))
     
-    rewards, n = read_all_rewards(Path("REINFORCE/variability"))
+    rewards, n = read_all_rewards(Path("Rewards/REINFORCE/variability"))
     label = "Exponential Anneal (defaults, n=4)"
     plot_rewards_batch(rewards, label)
     
-    rewards, n = read_all_rewards(Path("REINFORCE/lin_anneal_0p9"))
+    rewards, n = read_all_rewards(Path("Rewards/REINFORCE/lin_anneal_0p9"))
     label = "Linear Anneal (0.9, n=3)"
     plot_rewards_batch(rewards, label)
     
-    rewards, n = read_all_rewards(Path("REINFORCE/no_anneal_0p2"))
+    rewards, n = read_all_rewards(Path("Rewards/REINFORCE/no_anneal_0p2"))
     label = "No Anneal (0.2, n=1)"
     plot_rewards_batch(rewards, label)
     
@@ -110,31 +110,6 @@ def plot_reinforce_anneal(*args):
     plt.close()
     return
 
-def plot_rewards_a2c_test(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, headers = read_all_rewards(Path("runs"))
-    label = f"Name (n={len(headers)})"
-    plot_rewards_batch(rewards, headers, label)
-
-
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 249)
-
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Buffer/Batch Size Comparison')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    plt.show()
-    # plt.savefig("bufferbatch.png")
-    plt.close()
-    return
 
 def main():
     plot_reinforce_variability()
