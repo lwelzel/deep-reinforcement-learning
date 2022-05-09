@@ -29,6 +29,22 @@ TLDR:
 ### Analyzing the DQNResult
 1. Run plot_rewards_ac.py to plot specific results or the saved results in the A2C_runs directory
 
+## Use REINFORCE / CEM-Evolutionary
+TLDR:
+1. Run training_functions.py or experiment.py
+2. Run plot_rewards.py to plot specific results or the saved results in the BATCHES directory
+### Preparation
+1. Set up the environment with all required dependencies using pip and requirements_py37.txt
+2. Copy the saved results from the studies (not submitted via brightspace) into a BATCHES dir 
+### Running the A2C
+1. Run any of the programs below with the desired inputs.
+   1. experiment.py for a list of studies (contains REINFORCE and CEM)
+   2. training_functions for test training for either REINFORCE or CEM 
+2. A progress bar will show
+3. The result (rewards) will be saved intermittently 
+### Analyzing the DQNResult
+1. Run plot_rewards.py to plot specific results or the saved results in the runs directory
+
 ---
 ---
 
