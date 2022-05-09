@@ -16,6 +16,8 @@ from base_agent import BaseAgent
 from actor_critic_model import ActorCriticModel
 from tqdm import tqdm
 from buffer_class import MetaBuffer, PrioBuffer
+from pathlib import Path
+import h5py
 
 
 class ActorCriticAgent(object):
@@ -26,25 +28,36 @@ class ActorCriticAgent(object):
                  use_TES=False,
                  use_AN=False,
                  buffer_type=None,
-                 buffer_depth=1000, batch_size=64,
-                 max_reward=500,
-                 exp_policy='egreedy', epsilon=1., temperature=1., tanh_temp=10.,
-                 anneal_method='exponential',
-                 decay=0.95, epsilon_min=0.01, temp_min=0.1,
+                 buffer_depth=1000,
+                 tanh_temp=10.,
+                 decay=0.95,
                  learning_rate=5e-3, discount=0.95,
                  hidden_layers_actor=(32, 16), hidden_act_actor='relu',
                  kernel_init_actor="glorot_uniform", actor_output_activation="tanh",  # "softmax", None is ok since we assume logits internally
                  hidden_layers_critic=(32, 16), hidden_act_critic='relu',
-                 kernel_init_critic="glorot_uniform", critic_output_activation=None,  # must be None to allow any value
+                 kernel_init_critic="glorot_uniform",
                  name="", id=0,
+                 batch_size=60,
+                 max_reward=500,
+                 epsilon=1.,
+                 critic_output_activation=None, # must be None to allow any value
                  **kwargs):
         super(ActorCriticAgent, self).__init__()
+
+        # AGENT
+        self.agent_name = name+str(id)
+        self.use_BS = use_BS
+        self.use_BLS = use_BLS
+        self.use_ER = use_ER
+        self.use_TES = use_TES
+        self.use_AN = use_AN
 
         # ENVIRONMENT
         self.state_space = state_space.shape
         self.state_space_size = self.state_space[0]
         self.action_space = action_space
         self.action_state_size = action_space.n
+        self.max_reward = max_reward
 
         # RNG
         self.rng = np.random.default_rng()
@@ -54,6 +67,12 @@ class ActorCriticAgent(object):
         self.epsilon = epsilon
         self.tanh_temp = tanh_temp
         self.decay = decay
+        self.discount = discount
+        self.actor_output_activation = actor_output_activation
+        self.hidden_layers_actor = hidden_layers_actor
+        self.hidden_layers_critic = hidden_layers_critic
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
         # regularization coefficients
         self.value_rc = 0.5
         self.entropy_rc = 1e-4
@@ -125,13 +144,12 @@ class ActorCriticAgent(object):
             self.update_target_entropy = self._pass
         # anneal action selection
         if use_AN:
+            self.anneal_method = "tanh-scaling"
             self.anneal = self._anneal_tanh_temp
         else:
+            self.anneal_method = "no-anneal"
             self.tanh_temp = 1.
             self.anneal = self._pass
-
-
-
 
 
     def select_action(self, s, num_samples=1):
@@ -238,8 +256,6 @@ class ActorCriticAgent(object):
 
         # TODO: ACER PER sample selection
 
-
-
         advantages, returns = self.get_advantage(target_values=values,
                                                  rewards=rewards,
                                                  dones=dones,
@@ -258,6 +274,43 @@ class ActorCriticAgent(object):
         # self.anneal()
         return losses
 
+    def save(self, rewards, dir="./runs"):
+        """Saves rewards list to directory"""
+        rewards = rewards[np.isfinite(rewards)]
+
+        Path(dir).mkdir(parents=True, exist_ok=True)
+
+        try:
+            f = h5py.File(Path(dir) / "Rewards_{}.h5".format(self.agent_name), 'w')
+            f.create_dataset("rewards", data=rewards)
+
+            ### save simulation data to h5 file
+            meta_dict = {"alpha": self.learning_rate,
+                         "gamma": self.discount,
+                         "anneal": self.anneal_method,
+                         "max_reward": self.max_reward,
+                         "tanh_temperature": self.tanh_temp,
+                         "decay": self.decay,
+                         "actor_output_activation": self.actor_output_activation,
+                         "hidden_layers_actor": self.hidden_layers_actor,
+                         "hidden_layers_critic": self.hidden_layers_critic,
+                         "batch_size": self.batch_size,
+                         "value_rc": self.value_rc,
+                         "entropy_rc": self.entropy_rc,
+                         "use_BS": self.use_BS,
+                         "use_BLS": self.use_BLS,
+                         "use_ER": self.use_ER,
+                         "use_TES": self.use_TES,
+                         "use_AN": self.use_AN,
+                         }
+
+            # Store metadata in hdf5 file
+            for k in meta_dict.keys():
+                f.attrs[k] = str(meta_dict[k])
+            f.close()
+        except BaseException:
+            print(f"!! a file could not be saved !!")
+
 
 @njit(parallel=False, nogil=True, fastmath=True)
 def adjust_reward(r, i, done, max_steps, adjust_factor=0.1, adjust=True):
@@ -266,14 +319,18 @@ def adjust_reward(r, i, done, max_steps, adjust_factor=0.1, adjust=True):
     return int(r)
 
 
-def train_actor_critic(env, num_epochs, batch_size=64, adjust_factor=0.1, adjust=True, **kwargs):
-    pi = ActorCriticAgent(env.observation_space, env.action_space, batch_size=batch_size, **kwargs)
-    pi.model.summary()
-    plot_model(pi.model, "a2c_model_graph.png",
-               show_shapes=True,
-               show_layer_names=True,
-               expand_nested=True,
-               )
+def train_actor_critic(env, num_epochs, batch_size=64, adjust_factor=0.1, adjust=True, max_reward=200, *args, **kwargs):
+    if env is None:
+        import gym
+        env = gym.make('CartPole-v1')
+        env._max_episode_steps = max_reward
+    pi = ActorCriticAgent(env.observation_space, env.action_space, batch_size=batch_size, *args, **kwargs)
+    # pi.model.summary()
+    # plot_model(pi.model, "a2c_model_graph.png",
+    #            show_shapes=True,
+    #            show_layer_names=True,
+    #            expand_nested=True,
+    #            )
 
     actions = np.full(batch_size, fill_value=np.nan, dtype=int)
     rewards, dones, values = np.full((3, batch_size), fill_value=np.nan)
@@ -307,6 +364,9 @@ def train_actor_critic(env, num_epochs, batch_size=64, adjust_factor=0.1, adjust
                     next_state = env.reset()
             losses = pi.update_policy(states, actions, rewards, values, dones, next_state)
     pbar.close()
+
+    pi.save(episode_rewards[:num_epochs])
+
     return episode_rewards[:num_epochs]
 
 

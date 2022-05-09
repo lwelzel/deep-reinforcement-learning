@@ -30,7 +30,7 @@ def hyperparam_study():
         avg_over_reps(exp_policy=method, name=f"exploration_{method}")
     
     for e in [0.5,0.9,1.0]:
-        for d in [0.85,0.9,0.999]:
+        for d in [0.85, 0.9, 0.999]:
             avg_over_reps(epsilon=e, decay=d, name=f"epsilon={e}_decay={d}")
     
     for gamma in [0.1,0.3,0.6]:

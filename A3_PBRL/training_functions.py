@@ -61,7 +61,7 @@ def train(method, num_epochs=200, num_traces=5, num_agents=25,
     if method == 'reinforce':
         train_reinforce(env, **kwargs)
     elif method == 'actor-critic':
-        train_actor_critic(env, num_epochs, **kwargs)
+        __ = train_actor_critic(env, num_epochs, **kwargs)
     elif method == 'evolutionary':
         train_evo(env, **kwargs)
         
