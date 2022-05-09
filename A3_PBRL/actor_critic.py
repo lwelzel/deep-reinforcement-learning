@@ -27,18 +27,23 @@ class ActorCriticAgent(object):
                  use_ER=False,
                  use_TES=False,
                  use_AN=False,
+                 use_AN_batch=False,
                  buffer_type=None,
                  buffer_depth=1000,
-                 tanh_temp=10.,
-                 decay=0.95,
-                 learning_rate=5e-3, discount=0.95,
-                 hidden_layers_actor=(32, 16), hidden_act_actor='relu',
+                 tanh_temp=1.,
+                 decay=0.99,
+                 batch_decay=1.,
+                 batch_base=0.1,
+                 learning_rate=5e-3,
+                 discount=0.95,
+                 hidden_layers_actor=(32, 16), hidden_act_actor='tanh',
                  kernel_init_actor="glorot_uniform", actor_output_activation="tanh",  # "softmax", None is ok since we assume logits internally
                  hidden_layers_critic=(32, 16), hidden_act_critic='relu',
                  kernel_init_critic="glorot_uniform",
                  name="", id=0,
+                 sdir="/runs",
                  batch_size=60,
-                 max_reward=500,
+                 max_reward=200,
                  epsilon=1.,
                  critic_output_activation=None, # must be None to allow any value
                  **kwargs):
@@ -51,6 +56,8 @@ class ActorCriticAgent(object):
         self.use_ER = use_ER
         self.use_TES = use_TES
         self.use_AN = use_AN
+        self.use_AN_batch = use_AN_batch
+        self.sdir = sdir
 
         # ENVIRONMENT
         self.state_space = state_space.shape
@@ -81,7 +88,9 @@ class ActorCriticAgent(object):
         self.tes_alpha = 0.01
         self.tes_window = np.zeros((20, batch_size), dtype=float)
         self._tes_counter = 0
-        self.batch_size = batch_size
+        # batch anneal
+        self.batch_decay = 0.9
+        self.batch_base = 0.1
 
         # TF functions
         # get a weighted, sparse, cross entropy function to compute cross entropy for loss function
@@ -270,18 +279,18 @@ class ActorCriticAgent(object):
         losses = self.model.train_on_batch(trace_array,
                                            [actions_advantage,
                                             returns])
-
-        # self.anneal()
+        if self.use_AN:
+            self.anneal()
         return losses
 
     def save(self, rewards, dir="./runs"):
         """Saves rewards list to directory"""
         rewards = rewards[np.isfinite(rewards)]
 
-        Path(dir).mkdir(parents=True, exist_ok=True)
+        Path(self.sdir).mkdir(parents=True, exist_ok=True)
 
         try:
-            f = h5py.File(Path(dir) / "Rewards_{}.h5".format(self.agent_name), 'w')
+            f = h5py.File(Path(self.sdir) / "Rewards_{}.h5".format(self.agent_name), 'w')
             f.create_dataset("rewards", data=rewards)
 
             ### save simulation data to h5 file
@@ -324,6 +333,7 @@ def train_actor_critic(env, num_epochs, batch_size=64, adjust_factor=0.1, adjust
         import gym
         env = gym.make('CartPole-v1')
         env._max_episode_steps = max_reward
+
     pi = ActorCriticAgent(env.observation_space, env.action_space, batch_size=batch_size, *args, **kwargs)
     # pi.model.summary()
     # plot_model(pi.model, "a2c_model_graph.png",
@@ -362,7 +372,15 @@ def train_actor_critic(env, num_epochs, batch_size=64, adjust_factor=0.1, adjust
                                           f"{np.mean(episode_rewards[np.clip(t_ep-50, a_min=0, a_max=None):t_ep]):02f}"})
                     pbar.update(1)
                     next_state = env.reset()
+                    pi.save(episode_rewards[:num_epochs])
             losses = pi.update_policy(states, actions, rewards, values, dones, next_state)
+            if pi.use_AN_batch:
+                pi.batch_size = np.clip(pi.batch_size * (1. + pi.batch_base * pi.batch_decay**t_ep), a_min=10, a_max=env._max_episode_steps * 2)
+                batch_size = pi.batch_size.astype(int)
+                batch_counter = np.arange(batch_size)
+                actions = np.full(batch_size, fill_value=np.nan, dtype=int)
+                rewards, dones, values = np.full((3, batch_size), fill_value=np.nan)
+                states = np.full((batch_size, 4), fill_value=np.nan)
     pbar.close()
 
     pi.save(episode_rewards[:num_epochs])
@@ -378,16 +396,21 @@ if __name__ == '__main__':
     env = gym.make('CartPole-v1')
     env._max_episode_steps = 200
 
-    rewards = train_actor_critic(env, num_epochs=500,
+    rewards = train_actor_critic(env, num_epochs=250,
                                  use_BS=True,
                                  use_BLS=True,
                                  use_ER=False,
                                  use_TES=False,
-                                 use_AN=False,
-                                 hidden_layers_actor=(32, 8),
-                                 hidden_layers_critic=(32, 8),
+                                 use_AN=True,
+                                 use_AN_batch=False,
+                                 batch_size=60,
+                                 tanh_temp=1.,
+                                 decay=0.99,
+                                 learning_rate=5e-3,
+                                 hidden_layers_actor=(32, 16),
+                                 hidden_layers_critic=(32, 16),
                                  hidden_act_actor='tanh',
-                                 kernel_init_actor="glorot_uniform", actor_output_activation=None,
+                                 kernel_init_actor="glorot_uniform", actor_output_activation="tanh",
                                  hidden_act_critic='relu',
                                  kernel_init_critic="glorot_uniform", critic_output_activation=None,
                                  )

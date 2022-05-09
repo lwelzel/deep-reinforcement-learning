@@ -6,23 +6,26 @@
 #
 #######################
 
+
 import numpy as np
 import pathos.multiprocessing as mp
 from time import strftime, gmtime
 from itertools import repeat
 
 
-def run_parallel_a2c(env, num_epochs=1000, batch_size=60, adjust_factor=0.1, adjust=True, max_reward=200,
-                        use_BS=True, use_BLS=True, use_ER=False, use_TES=False, use_AN=False,
-                        buffer_type=None, buffer_depth=1000,
-                        epsilon=1., tanh_temp=10.,
-                        decay=0.95,
-                        learning_rate=5e-3, discount=0.95, hidden_layers_actor=(32, 16), hidden_act_actor='relu',
-                        kernel_init_actor="glorot_uniform", actor_output_activation="tanh",
-                        hidden_layers_critic=(32, 16), hidden_act_critic='relu',
-                        kernel_init_critic="glorot_uniform",
-                        id=0,
-                        repeats=1, load=0.9):
+def run_parallel_a2c(env=None, num_epochs=1000, batch_size=60, adjust_factor=0.1, adjust=True, max_reward=200,
+                     use_BS=True, use_BLS=True, use_ER=False, use_TES=False, use_AN=False, use_AN_batch=False,
+                     buffer_type=None, buffer_depth=1000,
+                     epsilon=1., tanh_temp=1.,
+                     decay=0.99,
+                     batch_decay=0.9,
+                     batch_base=0.1,
+                     learning_rate=5e-3, discount=0.95, hidden_layers_actor=(32, 16), hidden_act_actor='tanh',
+                     kernel_init_actor="glorot_uniform", actor_output_activation="tanh",
+                     hidden_layers_critic=(32, 16), hidden_act_critic='relu',
+                     kernel_init_critic="glorot_uniform",
+                     id=0,
+                     repeats=1, load=0.9, sdir="runs/test"):
     """
     Trains many DQN agents in parallel, will use and block load (defaults to 90%) of available cores on the machine
      so that training might significantly slow down other processes.
@@ -63,10 +66,13 @@ def run_parallel_a2c(env, num_epochs=1000, batch_size=60, adjust_factor=0.1, adj
                           repeat(use_ER, repeats),
                           repeat(use_TES, repeats),
                           repeat(use_AN, repeats),
+                          repeat(use_AN_batch, repeats),
                           repeat(buffer_type, repeats),
                           repeat(buffer_depth, repeats),
-                          repeat(epsilon, repeats),
                           repeat(tanh_temp, repeats),
+                          repeat(decay, repeats),
+                          repeat(batch_decay, repeats),
+                          repeat(batch_base, repeats),
                           repeat(learning_rate, repeats),
                           repeat(discount, repeats),
                           repeat(hidden_layers_actor, repeats),
@@ -76,7 +82,8 @@ def run_parallel_a2c(env, num_epochs=1000, batch_size=60, adjust_factor=0.1, adj
                           repeat(hidden_layers_critic, repeats),
                           repeat(hidden_act_critic, repeats),
                           repeat(kernel_init_critic, repeats),
-                          repeat(name, repeats), ids))
+                          repeat(name, repeats), ids,
+                          repeat(sdir, repeats)))
 
     pool.close()
     pool.join()
@@ -84,8 +91,8 @@ def run_parallel_a2c(env, num_epochs=1000, batch_size=60, adjust_factor=0.1, adj
 
 
 def main_ac():
-    run_parallel_a2c(None, num_epochs=300, batch_size=60, adjust_factor=0.1, adjust=True, max_reward=200,
-                     use_BS=True, use_BLS=True, use_ER=False, use_TES=False, use_AN=False,
+    run_parallel_a2c(None, num_epochs=1000, batch_size=60, adjust_factor=0.1, adjust=True, max_reward=200,
+                     use_BS=True, use_BLS=True, use_ER=False, use_TES=False, use_AN=False, use_AN_batch=False,
                      buffer_type=None, buffer_depth=1000,
                      epsilon=1., tanh_temp=10.,
                      decay=0.95,
@@ -94,11 +101,9 @@ def main_ac():
                      hidden_layers_critic=(32, 16), hidden_act_critic='relu',
                      kernel_init_critic="glorot_uniform",
                      id=0,
-                     repeats=1, load=0.9)
+                     repeats=1, load=0.9, sdir="runs/test")
     return
 
 
 if __name__ == '__main__':
     main_ac()
-
-
