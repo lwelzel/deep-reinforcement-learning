@@ -40,9 +40,7 @@ def read_all_rewards(dir, fig="rewards", plot_all_paths=False):
 
     rewards = rewards[:, :min_len]
 
-    #label = f"example_label (n={len(headers)})"
-
-    return rewards, len(headers)
+    return rewards, headers
 
 def plot_rewards_batch(rewards, header, label, window=21, sigma=1, fig="rewards"):
     fig = plt.figure(num=fig)
@@ -55,7 +53,6 @@ def plot_rewards_batch(rewards, header, label, window=21, sigma=1, fig="rewards"
     smooth_std = smooth(std_rewards, window=window * 3, poly=1)
 
     max_reward = float(header[0]["max_reward"])
-    print(header[0])
 
 
     ax.plot(smooth_mean,
@@ -65,341 +62,20 @@ def plot_rewards_batch(rewards, header, label, window=21, sigma=1, fig="rewards"
                     np.clip(smooth_mean - smooth_std * sigma, a_min=0., a_max=200.),
                     alpha=0.1)#,label=f"{sigma} "r"$\sigma$ CI")
 
-def plot_rewards_default(*args):
+
+def plot_rewards_a2c_test(*args):
     fig, ax = plt.subplots(num="rewards",
                            nrows=1, ncols=1,
                            constrained_layout=True,
                            figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
-    label = f"Defaults (n={n})"
-    plot_rewards_batch(rewards, label)
-    
+    rewards, headers = read_all_rewards(Path("runs"))
+    label = f"Name (n={len(headers)})"
+    plot_rewards_batch(rewards, headers, label)
+
+
     ax.set_ylim(0., None)
     ax.set_xlim(0., 249)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Default Parameters')
-    ax.legend()
 
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("defaults.png")
-    plt.close()
-    return
-
-
-
-
-
-def plot_rewards_comparison_alpha(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
-    label = f"$\\alpha = 0.01$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_a=0p1"))
-    label = f"$\\alpha = 0.1$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_a=0p25"))
-    label = f"$\\alpha = 0.25$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_a=0p5"))
-    label = f"$\\alpha = 0.5$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 249)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Learning Rates Comparison')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("learning_rates.png")
-    plt.close()
-    return
-
-
-def plot_rewards_comparison_gamma(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
-    label = f"$\\gamma = 0.9$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_g=0p6"))
-    label = f"$\\gamma = 0.6$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_g=0p3"))
-    label = f"$\\gamma = 0.3$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_g=0p1"))
-    label = f"$\\gamma = 0.1$ (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 249)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Discount Factors Comparison')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("discount_factors.png")
-    plt.close()
-    return
-
-
-def plot_rewards_comparison_ablation(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults"))
-    label = f"Default (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_ER"))
-    label = f"No ER (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_TN"))
-    label = f"No TN (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_TN_no_ER"))
-    label = f"No TN, No ER (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 349)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Ablation Study')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("ablation.png")
-    plt.close()
-    return
-
-def plot_rewards_noER(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_no_ER"), plot_all_paths=True)
-    label = f"No ER (n={n})"
-    plot_rewards_batch(rewards, label)
-        
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 349)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Ablation Study')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("noER.png")
-    plt.close()
-    return
-
-
-def plot_rewards_comparison_layers(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[512,256,64]"))
-    label = f"[512,256,64] (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[256,128,64]"))
-    label = f"[256,128,64] (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[256,64]"))
-    label = f"[256,64] (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[128,64]"))
-    label = f"[128,64] (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_layers=[64,32]"))
-    label = f"[64,32] (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 249)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Neural Network Architecture Comparison')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("layers.png")
-    plt.close()
-    return
-
-
-def plot_rewards_comparison_exploration(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_exp=egreedy"))
-    label = f"$\\epsilon$-greedy (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_linear_anneal"))
-    label = f"$\\epsilon$-greedy, Linear Annealing (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_exp=softmax"))
-    label = f"Boltzmann (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 249)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Exploration Strategy')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("exploration.png")
-    plt.close()
-    return
-
-
-def plot_rewards_comparison_smartsoft(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=default1"))
-    label = f"Default (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_soft_update"))
-    label = f"Soft Update (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_smart_update"))
-    label = f"Smart Update (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 249)
-    
-    ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Smart vs Soft Update')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("smartsoft.png")
-    plt.close()
-    return
-
-def plot_rewards_comparison_maxrewards(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=default1"))
-    label = f"Default (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_high_max_reward"))
-    label = f"High Max Reward (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_medium_max_reward"))
-    label = f"Medium Max Reward (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 274)
-    
-    #ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
-    ax.set_xlabel('Episode [-]')
-    ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'DQN Rewards during Training: Max Reward Comparison')
-    ax.legend()
-
-    # fig.suptitle('example sup title', fontsize=16)
-
-    #plt.show()
-    plt.savefig("maxrewards.png")
-    plt.close()
-    return
-
-
-def plot_rewards_comparison_bufferbatch(*args):
-    fig, ax = plt.subplots(num="rewards",
-                           nrows=1, ncols=1,
-                           constrained_layout=True,
-                           figsize=(9, 6))
-    rewards, n = read_all_rewards(Path("BATCHES/batch=default1"))
-    label = f"Default (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_large_buffer_and_batch"))
-    label = f"Large Buffer & Batch (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_large_buffer_capacity"))
-    label = f"Large Buffer (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    rewards, n = read_all_rewards(Path("BATCHES/batch=defaults_tiny_buffer_capacity_and_batch"))
-    label = f"Tiny Buffer & Batch (n={n})"
-    plot_rewards_batch(rewards, label)
-    
-    ax.set_ylim(0., None)
-    ax.set_xlim(0., 249)
-    
     ax.axhline(200, ls='--', c='gray', label="200 Reward Limit")
     ax.set_xlabel('Episode [-]')
     ax.set_ylabel('Mean reward [-]')
@@ -408,22 +84,13 @@ def plot_rewards_comparison_bufferbatch(*args):
 
     # fig.suptitle('example sup title', fontsize=16)
 
-    #plt.show()
-    plt.savefig("bufferbatch.png")
+    plt.show()
+    # plt.savefig("bufferbatch.png")
     plt.close()
     return
 
 def main():
-    plot_rewards_default()
-    plot_rewards_comparison_alpha()
-    plot_rewards_comparison_gamma()
-    plot_rewards_comparison_ablation()
-    plot_rewards_noER()
-    plot_rewards_comparison_layers()
-    plot_rewards_comparison_exploration()
-    plot_rewards_comparison_smartsoft()
-    plot_rewards_comparison_maxrewards()
-    plot_rewards_comparison_bufferbatch()
+    plot_rewards_a2c_test()
 
 if __name__ == '__main__':
     main()
