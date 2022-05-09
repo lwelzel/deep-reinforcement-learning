@@ -47,8 +47,8 @@ def sample_traces(env, pi, n_traces, render=False):
     return trace_array, episode_len
 
 
-def train(method, num_epochs=200, num_traces=5, num_agents=25, 
-          max_reward = 200,
+def train(method, num_epochs=200, num_traces=5, num_agents=25,
+          max_reward=200,
           verbose=False, render=False,
           save_rewards=False, save_freq=10, 
           **kwargs):
@@ -59,14 +59,13 @@ def train(method, num_epochs=200, num_traces=5, num_agents=25,
     env = gym.make('CartPole-v1')
     env._max_episode_steps = max_reward
     if method == 'reinforce':
-        train_reinforce(env, **kwargs)
+        train_reinforce(env, num_epochs, num_traces, verbose, render, save_rewards, save_freq, **kwargs)
     elif method == 'actor-critic':
-        __ = train_actor_critic(env, num_epochs, **kwargs)
+        __ = train_actor_critic(env, num_epochs, num_traces, num_agents, verbose, render, save_rewards, save_freq, **kwargs)
     elif method == 'evolutionary':
         train_evo(env, **kwargs)
         
     print(f"One full training iteration took {time.time() - t_start:.0f} seconds")
-
 
 
 def train_reinforce(env, num_epochs=200, num_traces=5,
@@ -87,17 +86,16 @@ def train_reinforce(env, num_epochs=200, num_traces=5,
                 pi.save(average_trace_reward[:epoch])
 
             pi.anneal_policy_parameter(epoch, num_epochs)
-
             pbar.set_postfix({'Mean recent R':
                                   f"{np.mean(average_trace_reward[np.clip(epoch - 50, a_min=0, a_max=None):epoch]):02f}"})
             pbar.update(1)
-    
+            print(f"Epoch {epoch} : Mean Reward {average_trace_reward[epoch]}")
     if save_rewards:
         pi.save(average_trace_reward)
         
 
 def train_evo(env, num_epochs=20, num_traces=5, num_agents=50,
-              verbose=False, render=False,
+              verbose=False, render=True,
               save_rewards=False, save_freq=2,
               **kwargs):
                     
@@ -120,9 +118,9 @@ def train_evo(env, num_epochs=20, num_traces=5, num_agents=50,
                 pi.save(average_trace_reward[:epoch])
 
             pi.anneal_policy_parameter(epoch, num_epochs)
-
+            print(average_trace_reward[epoch])
             pbar.set_postfix({'Mean recent R':
-                                  f"{np.mean(average_trace_reward[np.clip(epoch - 50, a_min=0, a_max=None):epoch]):02f}"})
+                                  f"{np.mean(average_trace_reward[np.clip(epoch - 5, a_min=0, a_max=None):epoch]):02f}"})
             pbar.update(1)
     
     if save_rewards:
@@ -131,8 +129,8 @@ def train_evo(env, num_epochs=20, num_traces=5, num_agents=50,
     
 
 def main():
-    train('evolutionary', num_epochs=200, num_traces=5, verbose=True, render=True, save_rewards=True, save_freq=10,
-          num_agents=40, fit_method='individual', anneal_method='exponential', epsilon=0.7, decay=0.9)
+    train('reinforce', epsilon=0.2, anneal_method=None,  render=True, hidden_layers=[256, 256],
+          save_rewards=True, save_freq=10,name='reinforce_softmax_hid_layers_256_256_lin_anneal_0p9')
 
 
 if __name__ == '__main__':
