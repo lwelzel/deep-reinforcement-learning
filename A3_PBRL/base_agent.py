@@ -87,8 +87,8 @@ class BaseAgent:
         self.network = self._create_neural_net(hidden_layers, hidden_act, out_act kernel_init, optimizer)
 
         self.agent_name = f"run{strftime('%Y-%m-%d-%H-%M-%S', gmtime())}"
-        #self.dir = Path(f"{name}_a={learning_rate}_g={discount}_{exp_policy}_{anneal_method}_id={id}")
-        self.dir = Path(f"{name}_id={id}")
+        self.dir = Path(f"runs/{name}_a={learning_rate}_g={discount}_{exp_policy}_{anneal_method}_id={id}")
+        #self.dir = Path(f"runs/{name}_id={id}")
         print(f"Saving into directory: {self.dir}")
 
     def select_action_egreedy(self, s):
