@@ -589,12 +589,13 @@ def plot_rewards_a2c_long(*args):
     ax.set_xlim(0., None)
 
     ax.axhline(2500, ls='--', c='gray', label="2500 Reward Limit")
+    ax.axhline(500, ls='--', c='black', label="500 Reward Limit")
     ax.set_xlabel('Episode [-]')
     ax.set_ylabel('Mean reward [-]')
-    ax.set_title(f'A2C Ablation Study')
+    ax.set_title(f'A2C Long Episodes Study')
     ax.legend()
 
-    plt.savefig("./plots/ac_ablation.png")
+    plt.savefig("./plots/ac_long.png")
     plt.show()
     plt.close()
     return
